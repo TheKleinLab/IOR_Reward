@@ -1,0 +1,6 @@
+.idea/*
+.DS_Store
+ExpAssets/TestProject.db
+ExpAssets/TestProject.db.backup
+ExpAssets/Data/*
+ExpAssets/EDF/*
