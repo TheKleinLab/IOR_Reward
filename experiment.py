@@ -4,7 +4,7 @@ import klibs
 from klibs import Params
 from klibs.KLDraw import *
 import klibs.KLTimeKeeper as tk
-#  Below are some commonly required additional libraries; uncomment as needed.
+# Below are some commonly required additional libraries; uncomment as needed.
 
 # import os
 import time
@@ -16,7 +16,7 @@ import math
 # import aggdraw
 import random
 
-Params.default_fill_color = (255, 155, 87, 255) # TODO: rotate through seasons
+Params.default_fill_color = [165, 165, 165, 255] # TODO: rotate through seasons
 
 # Debug level is partially implemented and should, for now, be ignored. Future releases of KLIBs will respect this feature
 Params.debug_level = 3
@@ -77,7 +77,7 @@ class IOR_Reward(klibs.Experiment):
 		# during run time without having to be recreated
 		self.thick_rect = Rectangle(self.square_size_px, stroke=[self.thick_rect_border, self.square_border_colour])
 		self.thin_rect = Rectangle(self.square_size_px, stroke=[self.thin_rect_border, self.square_border_colour])
-		self.star = Circle(self.star_size_px, fill=[255,255,255])
+		self.star = FixationCross(75, 15, fill=[255,255,255])
 		
 		# establish the locations where boxes will be blit throughout the experiment
 		self.square_locs = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in range(1,4)]
@@ -89,8 +89,9 @@ class IOR_Reward(klibs.Experiment):
 		self.assign_colors()
 
 	def trial_prep(self, trial_factors):
+		print "TRIAL FACTORS: {0}".format(trial_factors)
 		self.fill()
-		self.blit(Circle(75, fill=[255,255,255]), 5, Params.screen_c)
+		self.blit(self.star, 5, Params.screen_c)
 		self.draw_neutral_boxes()
 		self.flip()
 
@@ -99,9 +100,8 @@ class IOR_Reward(klibs.Experiment):
 		cue_onset = tk.CountDown(self.cue_onset_duration)
 		while cue_onset.counting():
 			self.fill()
-			self.blit(Circle(75, fill=[255,255,255]), 5, Params.screen_c)
+			self.blit(self.star, 5, Params.screen_c)
 			self.draw_neutral_boxes()
-			pump()
 			self.flip()
 		cue_presenting = tk.CountDown(self.cue_presentation_duration)
 
@@ -121,7 +121,7 @@ class IOR_Reward(klibs.Experiment):
 			self.fill()
 			self.blit(left_box, 5, self.square_locs[0])
 			self.blit(right_box, 5, self.square_locs[2])
-			self.blit(Circle(75, fill=[255, 255, 255]), 5, Params.screen_c)
+			self.blit(self.star, 5, Params.screen_c)
 
 		self.draw_bandits(trial_factors[2])
 		bandit_presenting = tk.CountDown(self.response_window)
@@ -129,6 +129,7 @@ class IOR_Reward(klibs.Experiment):
 			self.fill()
 			self.blit(self.left_bandit, 5, self.square_locs[0])
 			self.blit(self.right_bandit, 5, self.square_locs[2])
+			self.blit(self.star, 5, Params.screen_c)
 			self.flip()
 
 		return {}
@@ -155,11 +156,11 @@ class IOR_Reward(klibs.Experiment):
 		if high_value_loc == LEFT:
 			self.thin_rect.fill = self.high_value_color
 			self.left_bandit = self.thin_rect.render()
-			self.thin_rect.fill = [0,0,0,0]
+			self.thin_rect.fill = self.low_value_color
 			self.right_bandit= self.thin_rect.render()
 		if high_value_loc == RIGHT:
 			self.thin_rect.fill = self.high_value_color
 			self.right_bandit = self.thin_rect.render()
-			self.thin_rect.fill = [0, 0, 0, 0]
+			self.thin_rect.fill = self.low_value_color
 			self.left_bandit = self.thin_rect.render()
 
