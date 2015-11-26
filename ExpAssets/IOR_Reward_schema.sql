@@ -38,7 +38,7 @@ CREATE TABLE participants (
 	sex text not null,
 	age integer not null, 
 	handedness text not null,
-  	created text not null
+  created text not null
 );
 
 CREATE TABLE trials (
@@ -46,13 +46,13 @@ CREATE TABLE trials (
 	participant_id integer key not null,
 	block_num integer not null,
 	trial_num integer not null,
-    response_time text not null,
-    time_out text not null,
-    response text not null,
-    trial_type text not null,
-    trial_orient text not null,
-    probe_loc text not null,
-    cue_loc text not null,
-    trial_count text not null
+  response_time text not null,
+  time_out text not null,
+  response text not null,
+  trial_type text not null,
+  high_value_loc text not null,
+  probe_loc text not null,
+  cue_loc text not null,
+  trial_count text not null
     
 );
