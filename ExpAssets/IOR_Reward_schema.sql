@@ -18,14 +18,14 @@ been caught much earlier.
 To do this, modify the document as needed, then, in your project. To rebuild the database with
 your changes just delete your database files, or just run:
 
-  rm /Users/Brett/TestProject/ExpAssets/TestProject.db*
+  rm /Users/Brett/IOR_Reward/ExpAssets/IOR_Reward.db*
 
 and run the experiment, this will force klibs to rebuild your database.
 
 But be warned: THIS WILL DELETE ALL YOUR CURRENT DATA. The database will be completely 
 destroyed and rebuilt. If you wish to keep the data you currently have, be sure to first run:
 
-  klibs export /Users/Brett/TestProject
+  klibs export /Users/Brett/IOR_Reward
 
 This will export the database in it's current state to text files found in /Users/Brett/Data.
 

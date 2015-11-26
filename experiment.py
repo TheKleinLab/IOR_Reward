@@ -33,7 +33,7 @@ Params.trials_per_practice_block = None
 
 
 
-class TestProject(klibs.Experiment):
+class IOR_Reward(klibs.Experiment):
 	thick_rect = None
 	thick_rect_border = 5 # pixels 
 	thin_rect = None
@@ -67,7 +67,6 @@ class TestProject(klibs.Experiment):
 		
 		# establish the locations where boxes will be blit throughout the experiment
 		self.square_locs = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in range(1,4)]
-		
 
 	def setup(self):
 		Params.key_maps['TestProject_response'] = klibs.KeyMap('TestProject_response', [], [], [])
