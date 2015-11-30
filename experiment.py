@@ -45,9 +45,10 @@ class IOR_Reward(klibs.Experiment):
 	star_size = 3
 	star_size_px = None
 	star_border = 5
-	square_size = 5 # degrees of visual angle
+	square_size = 4 # degrees of visual angle
 	square_size_px = None # pixels
-	square_loc = []
+	left_box_loc = None
+	right_box_loc = None
 	response_window = 2
 	cue_onset_duration = 1
 	cue_presentation_duration = 1
@@ -62,6 +63,9 @@ class IOR_Reward(klibs.Experiment):
 
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
+		ar = klibs.KLAudio.AudioResponse()
+		print ar.get_ambient_level(1)
+		quit()
 		# broadly, this method is just defining parameters, graphical objects, reference info
 		# that will be needed throughout the experiment
 		
@@ -75,12 +79,13 @@ class IOR_Reward(klibs.Experiment):
 		# (note that these are Drawbjects, rather than images; they can be blitted as though they were
 		# images because KLIBs is smart like that, but, being objects, they can also be modified
 		# during run time without having to be recreated
-		self.thick_rect = Rectangle(self.square_size_px, stroke=[self.thick_rect_border, self.square_border_colour])
-		self.thin_rect = Rectangle(self.square_size_px, stroke=[self.thin_rect_border, self.square_border_colour])
-		self.star = FixationCross(75, 15, fill=[255,255,255])
-		
+		self.thick_rect = Rectangle(self.square_size_px, stroke=[self.thick_rect_border, self.square_border_colour, STROKE_OUTER])
+		self.thin_rect = Rectangle(self.square_size_px, stroke=[self.thin_rect_border, self.square_border_colour, STROKE_OUTER])
+		# self.star = FixationCross(75, 15, fill=[255,255,255])
+		self.star = Circle(75, fill=[255,255,255])
+
 		# establish the locations where boxes will be blit throughout the experiment
-		self.square_locs = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in range(1,4)]
+		self.left_box_loc, self.right_box_loc = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in [1,3]]
 
 	def setup(self):
 		Params.key_maps['TestProject_response'] = klibs.KeyMap('TestProject_response', [], [], [])
@@ -89,46 +94,19 @@ class IOR_Reward(klibs.Experiment):
 		self.assign_colors()
 
 	def trial_prep(self, trial_factors):
-		print "TRIAL FACTORS: {0}".format(trial_factors)
-		self.fill()
-		self.blit(self.star, 5, Params.screen_c)
-		self.draw_neutral_boxes()
-		self.flip()
+		self.present_neutral_boxes(True)
 
 	def trial(self, trial_factors):
-		# present the neutral boxes prior to cuing
-		cue_onset = tk.CountDown(self.cue_onset_duration)
-		while cue_onset.counting():
-			self.fill()
-			self.blit(self.star, 5, Params.screen_c)
-			self.draw_neutral_boxes()
-			self.flip()
-		cue_presenting = tk.CountDown(self.cue_presentation_duration)
+		self.present_neutral_boxes()
+		self.present_cues(trial_factors[4])
+		self.prepare_bandits(trial_factors[2])
 
-		# assign graphics to cued location
-		left_box = self.thick_rect
-		right_box = self.thin_rect
-		if trial_factors[4] == RIGHT:
-			left_box = self.thin_rect
-			right_box = self.thick_rect
-
-		if trial_factors[4] == DOUBLE:
-			left_box = self.thick_rect
-			right_box = self.thick_rect
-
-		# present cue
-		while cue_presenting.counting():
-			self.fill()
-			self.blit(left_box, 5, self.square_locs[0])
-			self.blit(right_box, 5, self.square_locs[2])
-			self.blit(self.star, 5, Params.screen_c)
-
-		self.draw_bandits(trial_factors[2])
 		bandit_presenting = tk.CountDown(self.response_window)
 		while bandit_presenting.counting():
+			pump()
 			self.fill()
-			self.blit(self.left_bandit, 5, self.square_locs[0])
-			self.blit(self.right_bandit, 5, self.square_locs[2])
+			self.blit(self.left_bandit, 5, self.left_box_loc)
+			self.blit(self.right_bandit, 5, self.right_box_loc)
 			self.blit(self.star, 5, Params.screen_c)
 			self.flip()
 
@@ -148,11 +126,8 @@ class IOR_Reward(klibs.Experiment):
 		for i in range(0, 3):
 			self.low_value_color.append(random.choice(range(0, 256)))
 
-	def draw_neutral_boxes(self):
-		self.blit(self.thin_rect, 5, self.square_locs[0])
-		self.blit(self.thin_rect, 5, self.square_locs[2])
 
-	def draw_bandits(self, high_value_loc):
+	def prepare_bandits(self, high_value_loc):
 		if high_value_loc == LEFT:
 			self.thin_rect.fill = self.high_value_color
 			self.left_bandit = self.thin_rect.render()
@@ -164,3 +139,28 @@ class IOR_Reward(klibs.Experiment):
 			self.thin_rect.fill = self.low_value_color
 			self.left_bandit = self.thin_rect.render()
 
+	def present_cues(self, cue_condition):
+	# assign graphics to cued location
+		left_box = self.thick_rect if cue_condition in [LEFT, DOUBLE] else self.thin_rect
+		right_box = self.thick_rect if cue_condition in [RIGHT, DOUBLE] else self.thin_rect
+
+		# present cue
+		cue_presentation = tk.CountDown(self.cue_presentation_duration)
+		while cue_presentation.counting():
+			self.fill()
+			self.blit(left_box, 5, self.left_box_loc)
+			self.blit(right_box, 5, self.right_box_loc)
+			self.blit(self.star, 5, Params.screen_c)
+			self.flip()
+
+	def present_neutral_boxes(self, pre_trial_blit=False):
+		cue_onset = tk.CountDown(self.cue_onset_duration)
+		while cue_onset.counting():
+			pump()
+			self.fill()
+			self.blit(self.star, 5, Params.screen_c)
+			self.blit(self.thin_rect, 5, self.left_box_loc)
+			self.blit(self.thin_rect, 5, self.right_box_loc)
+			self.flip()
+			if pre_trial_blit:
+				cue_onset.finish()
