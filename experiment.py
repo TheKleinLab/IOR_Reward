@@ -27,15 +27,16 @@ Params.eye_tracking = True
 Params.eye_tracker_available = False
 
 Params.blocks_per_experiment = 1
-Params.trials_per_block = 1
+Params.trials_per_block = 10
 Params.practice_blocks_per_experiment = None
 Params.trials_per_practice_block = None
 
 LEFT = "left"
 RIGHT = "right"
 DOUBLE = "double"
-
-
+PROBE = "probe"
+BOTH = "both"
+BANDIT = "bandit"
 class IOR_Reward(klibs.Experiment):
 	thick_rect = None
 	thick_rect_border = 15 # pixels
@@ -49,10 +50,11 @@ class IOR_Reward(klibs.Experiment):
 	square_size_px = None # pixels
 	left_box_loc = None
 	right_box_loc = None
+	star_loc = None
+	probe_loc = None
 	response_window = 2
 	cue_onset_duration = 1
 	cue_presentation_duration = 1
-
 
 	# Runtime vars (ie. defined on a per-trial or per-block basis)
 	high_value_color = None  # block-level var
@@ -63,9 +65,6 @@ class IOR_Reward(klibs.Experiment):
 
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
-		ar = klibs.KLAudio.AudioResponse()
-		print ar.get_ambient_level(1)
-		quit()
 		# broadly, this method is just defining parameters, graphical objects, reference info
 		# that will be needed throughout the experiment
 		
@@ -83,36 +82,82 @@ class IOR_Reward(klibs.Experiment):
 		self.thin_rect = Rectangle(self.square_size_px, stroke=[self.thin_rect_border, self.square_border_colour, STROKE_OUTER])
 		# self.star = FixationCross(75, 15, fill=[255,255,255])
 		self.star = Circle(75, fill=[255,255,255])
+		self.star_loc = self.probe_loc
 
 		# establish the locations where boxes will be blit throughout the experiment
 		self.left_box_loc, self.right_box_loc = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in [1,3]]
 
+
 	def setup(self):
 		Params.key_maps['TestProject_response'] = klibs.KeyMap('TestProject_response', [], [], [])
+		self.probe_loc = self.left_box_loc
+
 
 	def block(self, block_num):
 		self.assign_colors()
 
 	def trial_prep(self, trial_factors):
 		self.present_neutral_boxes(True)
+		# If probed trial, establish location of probe (default: left box)
+		if trial_factors[0] == PROBE or BOTH:
+			self.prepare_bandits(trial_factors[2])
+			if trial_factors[2] == RIGHT:
+				self.probe_loc = self.right_box_loc
+		if trial_factors[0] == BANDIT:
+			self.prepare_bandits(trial_factors[2])
+
+
 
 	def trial(self, trial_factors):
 		self.present_neutral_boxes()
 		self.present_cues(trial_factors[4])
-		self.prepare_bandits(trial_factors[2])
-
-		bandit_presenting = tk.CountDown(self.response_window)
-		while bandit_presenting.counting():
+		awaiting_response = tk.CountDown(self.response_window)
+		while awaiting_response.counting:
 			pump()
 			self.fill()
-			self.blit(self.left_bandit, 5, self.left_box_loc)
-			self.blit(self.right_bandit, 5, self.right_box_loc)
-			self.blit(self.star, 5, Params.screen_c)
-			self.flip()
+			if trial_factors[0] == PROBE or BOTH:
+				if trial_factors == PROBE:
+					# self.present_neutral_boxes()
+					self.blit(self.star, 5, self.probe_loc)
+				if trial_factors == BOTH:
+					self.blit(self.star, 5, self.probe_loc)
+					self.blit(self.left_bandit, 5, self.left_box_loc)
+					self.blit(self.right_bandit, 5, self.right_box_loc)
+				self.flip()
+			else:
+				self.blit(self.left_bandit, 5, self.left_box_loc)
+				self.blit(self.right_bandit, 5, self.right_box_loc)
+				self.flip()
 
-		return {}
 
-	def trial_clean_up(self, trial_factors):
+
+		# probe_presenting = tk.CountDown(self.response_window)
+		#   while probe_presenting.counting():
+		#       pump()
+		#       self.fill()
+		#       self.present_neutral_boxes()
+		#       self.blit(self.probe, 5, self.probe_loc)
+		#       self.flip()
+
+		# elif trial_factors[0] == bandit
+            # bandit_presenting = tk.CountDown(self.response_window)
+            # self.prepare_bandits(trial_factors[2])
+            # while bandit_presenting.counting():
+            # 	pump()
+            #	self.fill()
+            #	self.blit(self.left_bandit, 5, self.left_box_loc)
+            #	self.blit(self.right_bandit, 5, self.right_box_loc)
+            #	self.blit(self.star, 5, Params.screen_c)
+            #	self.flip()
+
+
+
+
+		return {"block_num": Params.block_number, "trial_num": Params.trial_number, "response_time": -1, "time_out": -1, "response": -1,
+		        "trial_type": trial_factors[0] , "high_value_loc": trial_factors[1], "probe_loc": trial_factors[2],
+		        "cue_loc": trial_factors[3], "trial_count": trial_factors[4]}
+
+	def trial_clean_up(self, trial_id, trial_factors):
 		self.thin_rect.fill = [0, 0, 0, 0]
 
 	def clean_up(self):
