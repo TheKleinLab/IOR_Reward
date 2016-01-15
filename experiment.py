@@ -4,6 +4,7 @@ import klibs
 from klibs import Params
 from klibs.KLDraw import *
 import klibs.KLTimeKeeper as tk
+from klibs.KLResponseCollectors import *
 # Below are some commonly required additional libraries; uncomment as needed.
 
 # import os
@@ -42,9 +43,9 @@ class IOR_Reward(klibs.Experiment):
 	thin_rect = None
 	thin_rect_border = 2
 	square_border_colour = [255, 255, 255]
+	star_color = [255,255,255,255]
 	star_size = 3
 	star_size_px = None
-	star_border = 5
 	square_size = 4 # degrees of visual angle
 	square_size_px = None # pixels
 	left_box_loc = None
@@ -63,9 +64,12 @@ class IOR_Reward(klibs.Experiment):
 
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
-		ar = klibs.KLAudio.AudioResponse()
-		print ar.get_ambient_level(1)
-		quit()
+		# ar = self.audio.create_listener(1000)
+		# print ar.get_ambient_level(5)
+		# kpr = KeyPressCollector( klibs.KLKeyMap.KeyMap('test', ['z'], ['z'], [sdl2.SDLK_z]), self, interrupt=True)
+		# kpr.run()
+		# print kpr.response
+
 		# broadly, this method is just defining parameters, graphical objects, reference info
 		# that will be needed throughout the experiment
 		
@@ -81,14 +85,23 @@ class IOR_Reward(klibs.Experiment):
 		# during run time without having to be recreated
 		self.thick_rect = Rectangle(self.square_size_px, stroke=[self.thick_rect_border, self.square_border_colour, STROKE_OUTER])
 		self.thin_rect = Rectangle(self.square_size_px, stroke=[self.thin_rect_border, self.square_border_colour, STROKE_OUTER])
-		# self.star = FixationCross(75, 15, fill=[255,255,255])
-		self.star = Circle(75, fill=[255,255,255])
+		self.star = Asterisk(self.star_size_px, self.star_color)
 
 		# establish the locations where boxes will be blit throughout the experiment
 		self.left_box_loc, self.right_box_loc = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in [1,3]]
 
 	def setup(self):
 		Params.key_maps['TestProject_response'] = klibs.KeyMap('TestProject_response', [], [], [])
+		self.rc.keypress_listener.interrupts = True
+		self.rc.display_callback = self.display_refresh
+		self.rc.response_window = self.response_window
+		if not Params.development_mode:
+			self.rc.audio_listener.calibrate()
+		else:
+			self.rc.audio_listener.threshold_valid = True
+			self.rc.audio_listener.threshold = 50
+			self.rc.audio_listener.calibrated = True
+
 
 	def block(self, block_num):
 		self.assign_colors()
@@ -101,16 +114,21 @@ class IOR_Reward(klibs.Experiment):
 		self.present_cues(trial_factors[4])
 		self.prepare_bandits(trial_factors[2])
 
-		bandit_presenting = tk.CountDown(self.response_window)
-		while bandit_presenting.counting():
-			pump()
-			self.fill()
-			self.blit(self.left_bandit, 5, self.left_box_loc)
-			self.blit(self.right_bandit, 5, self.right_box_loc)
-			self.blit(self.star, 5, Params.screen_c)
-			self.flip()
+		self.rc.collect()
 
-		return {}
+		return {
+		"block_num": Params.block_number,
+		"trial_num": Params.trial_number,
+		"audio_response_time": self.rc.responses['audio'][0][1],
+		"audio_timed_out": self.rc.responses['audio'][0][1] == TIMEOUT,
+		"keypress_response_time": self.rc.responses['keypress'][0][1],
+		"keypress_timed_out": self.rc.responses['keypress'][0][1] == TIMEOUT,
+		"keypress_response": self.rc.responses['keypress'][0][0],
+		"trial_type": trial_factors[1],
+		"high_value_loc": trial_factors[2],
+		"probe_loc": trial_factors[3],
+		"cue_loc": trial_factors[4]
+		}
 
 	def trial_clean_up(self, trial_factors):
 		self.thin_rect.fill = [0, 0, 0, 0]
@@ -164,3 +182,10 @@ class IOR_Reward(klibs.Experiment):
 			self.flip()
 			if pre_trial_blit:
 				cue_onset.finish()
+
+	def display_refresh(self):
+		self.fill()
+		self.blit(self.left_bandit, 5, self.left_box_loc)
+		self.blit(self.right_bandit, 5, self.right_box_loc)
+		self.blit(self.star, 5, Params.screen_c)
+		self.flip()
