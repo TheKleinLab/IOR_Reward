@@ -163,4 +163,3 @@ class IOR_Reward(klibs.Experiment):
 			self.right_bandit = self.thin_rect.render()
 			self.thin_rect.fill = self.low_value_color
 			self.left_bandit = self.thin_rect.render()
-
