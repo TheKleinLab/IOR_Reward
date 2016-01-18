@@ -29,15 +29,16 @@ Params.eye_tracking = True
 Params.eye_tracker_available = False
 
 Params.blocks_per_experiment = 1
-Params.trials_per_block = 1
+Params.trials_per_block = 10
 Params.practice_blocks_per_experiment = None
 Params.trials_per_practice_block = None
 
 LEFT = "left"
 RIGHT = "right"
 DOUBLE = "double"
-
-
+PROBE = "probe"
+BOTH = "both"
+BANDIT = "bandit"
 class IOR_Reward(klibs.Experiment):
 	thick_rect = None
 	thick_rect_border = 15 # pixels
@@ -51,10 +52,11 @@ class IOR_Reward(klibs.Experiment):
 	square_size_px = None # pixels
 	left_box_loc = None
 	right_box_loc = None
+	star_loc = None
+	probe_loc = None
 	response_window = 2
 	cue_onset_duration = 1
 	cue_presentation_duration = 1
-
 
 	# Runtime vars (ie. defined on a per-trial or per-block basis)
 	high_value_color = None  # block-level var
@@ -65,11 +67,14 @@ class IOR_Reward(klibs.Experiment):
 
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
+<<<<<<< HEAD
 		# ar = self.audio.create_listener(1000)
 		# kpr = KeyPressCollector( klibs.KLKeyMap.KeyMap('test', ['z'], ['z'], [sdl2.SDLK_z]), self, interrupt=True)
 		# kpr.run()
 		# print kpr.response
 
+=======
+>>>>>>> f7b84cf53c3df5db435e2bd99e1f4af8cc234d04
 		# broadly, this method is just defining parameters, graphical objects, reference info
 		# that will be needed throughout the experiment
 
@@ -85,12 +90,20 @@ class IOR_Reward(klibs.Experiment):
 		# during run time without having to be recreated
 		self.thick_rect = Rectangle(self.square_size_px, stroke=[self.thick_rect_border, self.square_border_colour, STROKE_OUTER])
 		self.thin_rect = Rectangle(self.square_size_px, stroke=[self.thin_rect_border, self.square_border_colour, STROKE_OUTER])
+<<<<<<< HEAD
 		self.star = Asterisk(self.star_size_px, self.star_color)
+=======
+		# self.star = FixationCross(75, 15, fill=[255,255,255])
+		self.star = Circle(75, fill=[255,255,255])
+		self.star_loc = self.probe_loc
+>>>>>>> f7b84cf53c3df5db435e2bd99e1f4af8cc234d04
 
 		# establish the locations where boxes will be blit throughout the experiment
 		self.left_box_loc, self.right_box_loc = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in [1,3]]
 
+
 	def setup(self):
+<<<<<<< HEAD
 		self.rc.uses([RC_AUDIO, RC_KEYPRESS])
 		self.rc.keypress_listener.interrupts = True
 		self.rc.display_callback = self.display_refresh
@@ -102,6 +115,10 @@ class IOR_Reward(klibs.Experiment):
 			self.rc.audio_listener.threshold_valid = True
 			self.rc.audio_listener.threshold = 50
 			self.rc.audio_listener.calibrated = True
+=======
+		Params.key_maps['TestProject_response'] = klibs.KeyMap('TestProject_response', [], [], [])
+		self.probe_loc = self.left_box_loc
+>>>>>>> f7b84cf53c3df5db435e2bd99e1f4af8cc234d04
 
 
 	def block(self, block_num):
@@ -109,6 +126,15 @@ class IOR_Reward(klibs.Experiment):
 
 	def trial_prep(self, trial_factors):
 		self.present_neutral_boxes(True)
+		# If probed trial, establish location of probe (default: left box)
+		if trial_factors[0] == PROBE or BOTH:
+			self.prepare_bandits(trial_factors[2])
+			if trial_factors[2] == RIGHT:
+				self.probe_loc = self.right_box_loc
+		if trial_factors[0] == BANDIT:
+			self.prepare_bandits(trial_factors[2])
+
+
 
 	def trial(self, trial_factors):
 		self.present_neutral_boxes()
