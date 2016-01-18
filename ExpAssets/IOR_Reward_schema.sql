@@ -46,13 +46,13 @@ CREATE TABLE trials (
 	participant_id integer key not null,
 	block_num integer not null,
 	trial_num integer not null,
-  response_time text not null,
-  time_out text not null,
-  response text not null,
+  audio_response_time text not null,
+  keypress_response_time text not null,
+  audio_timed_out text not null,
+  keypress_timed_out text not null,
+  keypress_response text not null,
   trial_type text not null,
   high_value_loc text not null,
   probe_loc text not null,
-  cue_loc text not null,
-  trial_count text not null
-    
+  cue_loc text not null
 );

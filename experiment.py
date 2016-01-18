@@ -5,6 +5,7 @@ from klibs import Params
 from klibs.KLDraw import *
 import klibs.KLTimeKeeper as tk
 from klibs.KLResponseCollectors import *
+from klibs.KLKeyMap import KeyMap
 # Below are some commonly required additional libraries; uncomment as needed.
 
 # import os
@@ -17,7 +18,7 @@ import math
 # import aggdraw
 import random
 
-Params.default_fill_color = [165, 165, 165, 255] # TODO: rotate through seasons
+Params.default_fill_color = [165, 165, 165, 255]  # TODO: rotate through seasons
 
 # Debug level is partially implemented and should, for now, be ignored. Future releases of KLIBs will respect this feature
 Params.debug_level = 3
@@ -44,7 +45,7 @@ class IOR_Reward(klibs.Experiment):
 	thin_rect_border = 2
 	square_border_colour = [255, 255, 255]
 	star_color = [255,255,255,255]
-	star_size = 3
+	star_size = 1
 	star_size_px = None
 	square_size = 4 # degrees of visual angle
 	square_size_px = None # pixels
@@ -65,21 +66,20 @@ class IOR_Reward(klibs.Experiment):
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
 		# ar = self.audio.create_listener(1000)
-		# print ar.get_ambient_level(5)
 		# kpr = KeyPressCollector( klibs.KLKeyMap.KeyMap('test', ['z'], ['z'], [sdl2.SDLK_z]), self, interrupt=True)
 		# kpr.run()
 		# print kpr.response
 
 		# broadly, this method is just defining parameters, graphical objects, reference info
 		# that will be needed throughout the experiment
-		
+
 		# initialize the pixel size of the boxes, which are otherwise defined in deg of visual angle
 		self.square_size_px = deg_to_px(self.square_size)
-		
+
 		# initialize the pixel size of the star/asterisk, which are otherwise defined in deg of visual angle
 		self.star_size_px = deg_to_px(self.star_size)
-		
-		# define the general form of your boxes & star/asterisk for later use in the trial 
+
+		# define the general form of your boxes & star/asterisk for later use in the trial
 		# (note that these are Drawbjects, rather than images; they can be blitted as though they were
 		# images because KLIBs is smart like that, but, being objects, they can also be modified
 		# during run time without having to be recreated
@@ -91,10 +91,11 @@ class IOR_Reward(klibs.Experiment):
 		self.left_box_loc, self.right_box_loc = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in [1,3]]
 
 	def setup(self):
-		Params.key_maps['TestProject_response'] = klibs.KeyMap('TestProject_response', [], [], [])
+		self.rc.uses([RC_AUDIO, RC_KEYPRESS])
 		self.rc.keypress_listener.interrupts = True
 		self.rc.display_callback = self.display_refresh
 		self.rc.response_window = self.response_window
+		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
 		if not Params.development_mode:
 			self.rc.audio_listener.calibrate()
 		else:
@@ -119,18 +120,18 @@ class IOR_Reward(klibs.Experiment):
 		return {
 		"block_num": Params.block_number,
 		"trial_num": Params.trial_number,
-		"audio_response_time": self.rc.responses['audio'][0][1],
-		"audio_timed_out": self.rc.responses['audio'][0][1] == TIMEOUT,
-		"keypress_response_time": self.rc.responses['keypress'][0][1],
-		"keypress_timed_out": self.rc.responses['keypress'][0][1] == TIMEOUT,
-		"keypress_response": self.rc.responses['keypress'][0][0],
+		"audio_response_time": self.rc.audio_listener.responses[0][1],
+		"audio_timed_out": self.rc.audio_listener.responses[0][1] == TIMEOUT,
+		"keypress_response_time": self.rc.keypress_listener.responses[0][1],
+		"keypress_timed_out": self.rc.keypress_listener.responses[0][1] == TIMEOUT,
+		"keypress_response": self.rc.keypress_listener.responses[0][0],
 		"trial_type": trial_factors[1],
 		"high_value_loc": trial_factors[2],
 		"probe_loc": trial_factors[3],
 		"cue_loc": trial_factors[4]
 		}
 
-	def trial_clean_up(self, trial_factors):
+	def trial_clean_up(self, trial_id,  trial_factors):
 		self.thin_rect.fill = [0, 0, 0, 0]
 
 	def clean_up(self):
