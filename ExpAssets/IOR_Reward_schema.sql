@@ -53,6 +53,7 @@ CREATE TABLE trials (
   keypress_response text not null,
   trial_type text not null,
   high_value_loc text not null,
+  winning_bandit text not null,
   probe_loc text not null,
   cue_loc text not null
 );
