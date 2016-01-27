@@ -10,14 +10,14 @@ from klibs.KLKeyMap import KeyMap
 import random
 
 Params.default_fill_color = [65, 65, 65, 255]
-Params.debug_level = 3
+Params.suppress_debug_pane = True
 Params.collect_demographics = False
 Params.practicing = False
 Params.eye_tracking = True
 Params.eye_tracker_available = False
 
 Params.blocks_per_experiment = 1
-Params.trials_per_block = 10
+Params.trials_per_block = 100
 Params.practice_blocks_per_experiment = None
 Params.trials_per_practice_block = None
 
@@ -159,13 +159,16 @@ class IOR_Reward(klibs.Experiment):
 
 		#  PROBE RESPONSE PERIOD
 		self.debug.log("PROBE RESPONSE PERIOD".format(trial_factors[1], self.bpoa))
+
 		if trial_factors[1] in [PROBE, BOTH]:
+			self.rc.before_flip_callback = self.display_refresh
+			self.rc.before_flip_args = [trial_factors[1], trial_factors[3], False]
+			print self.rc.before_flip_callback
 			self.collecting_response_for = PROBE
 			self.rc.disable(RC_KEYPRESS)
 			self.rc.enable(RC_AUDIO)
 			self.rc.response_window = self.pbra
 			self.rc.collect()
-			print self.rc.audio_listener.responses
 			if self.rc.audio_listener.responses[0][0] == self.rc.audio_listener.null_response:
 				acknowledged = False
 				while not acknowledged:
@@ -181,6 +184,8 @@ class IOR_Reward(klibs.Experiment):
 
 		#  BANDIT RESPONSE PERIOD
 		if trial_factors [1] in [BANDIT, BOTH]:
+			self.rc.before_flip_callback = self.display_refresh
+			self.rc.before_flip_args = [trial_factors[1], False, False]
 			self.debug.log("BANDIT RESPONSE PERIOD".format(trial_factors[1], self.bpoa))
 			self.collecting_response_for = BANDIT
 			self.rc.display_args = [trial_factors[1], False]
@@ -307,7 +312,7 @@ class IOR_Reward(klibs.Experiment):
 				self.message("Eyes moved. Please keep your eyes at fixation.", 'timeout', location=Params.screen_c, registration=5)
 				raise TrialException("Eyes must remain at fixation")
 
-	def display_refresh(self, trial_type, probe_loc=None):
+	def display_refresh(self, trial_type, probe_loc=None, flip=True):
 		self.fill()
 		probe_loc = self.left_box_loc
 		if probe_loc == RIGHT:
@@ -326,4 +331,5 @@ class IOR_Reward(klibs.Experiment):
 			self.blit(self.star_muted, 5, Params.screen_c)
 		else:
 			self.blit(self.star, 5, Params.screen_c)
-		self.flip()
+		if flip:
+			self.flip()
