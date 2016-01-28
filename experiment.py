@@ -15,7 +15,7 @@ Params.dm_auto_threshold = False
 Params.collect_demographics = False
 Params.practicing = False
 Params.eye_tracking = True
-Params.eye_tracker_available = False
+Params.eye_tracker_available = True
 
 Params.blocks_per_experiment = 1
 Params.trials_per_block = 100
@@ -54,7 +54,7 @@ class IOR_Reward(klibs.Experiment):
 	cue_presentation_duration = 350
 	cotoa_min = 700
 	cotoa_max = 1000
-	pbra = 1000								# probe-bandit response asynchrony
+	pbra = 2000								# probe-bandit response asynchrony
 	bpoa = 1000								# bandit-probe onset asynchrony
 	high_bandit_payout_min = 8
 	high_bandit_payout_max = 12
@@ -97,19 +97,20 @@ class IOR_Reward(klibs.Experiment):
 		self.probe = Circle(int(0.75 * self.square_size_px), None, self.square_border_colour).render()
 
 	def setup(self):
-		fix_x_1 = (Params.screen_c[0] - self.star_size_px //2) - 30
-		fix_y_1 = (Params.screen_c[1] - self.star_size_px //2) - 30
-		fix_x_2 = (Params.screen_c[0] + self.star_size_px //2) + 30
-		fix_y_2 = (Params.screen_c[1] + self.star_size_px //2) + 30
+		fix_x_1 = (Params.screen_c[0] - self.star_size_px //2) - 60
+		fix_y_1 = (Params.screen_c[1] - self.star_size_px //2) - 60
+		fix_x_2 = (Params.screen_c[0] + self.star_size_px //2) + 60
+		fix_y_2 = (Params.screen_c[1] + self.star_size_px //2) + 60
 		self.eyelink.add_gaze_boundary('fixation', [(fix_x_1, fix_y_1), (fix_x_2, fix_y_2)], EL_RECT_BOUNDARY)
 		self.text_manager.default_color = [255,255,255,255]
-		self.text_manager.add_style("score up", 48, [75,210,100,255])
-		self.text_manager.add_style("score down", 48, [210,75,75,255])
+		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=False)
+		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=False)
 		self.text_manager.add_style("timeout", 48, [255,255,255,255])
 		self.rc.audio_listener.calibrate()
 		probe_timeout_text = "No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue."
 		self.probe_timeout_msg = self.message(probe_timeout_text, 'timeout', blit=False)
 		self.bandit_timeout_msg = self.message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit=False)
+		self.fixation_fail_msg = 				self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
 
 	def setup_response_collector(self, trial_factors):
 		self.rc.display_args = [trial_factors[1], trial_factors[3]]
@@ -122,6 +123,7 @@ class IOR_Reward(klibs.Experiment):
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
 		if self.collecting_response_for == PROBE:
+			self.rc.audio_listener.interrupts = True
 			if trial_factors[1] == PROBE:
 				self.rc.audio_listener.interrupts = False
 			self.rc.post_flip_tk_label = "cpoa"
@@ -348,9 +350,10 @@ class IOR_Reward(klibs.Experiment):
 			acknowledged = False
 			while not acknowledged:
 				self.fill()
-				self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5)
+				self.blit(self.
+				self.blit(self.fixation_fail_msg, location=Params.screen_c, registration=5)
 				self.flip()
-				self.any_key()
+				acknowledged = self.any_key()
 			raise TrialException("Eyes must remain at fixation")
 
 	def display_refresh(self, trial_type, probe_loc=None, flip=True):
@@ -366,7 +369,6 @@ class IOR_Reward(klibs.Experiment):
 			self.blit(self.neutral_box, 5, self.left_box_loc)
 			self.blit(self.neutral_box, 5, self.right_box_loc)
 		if self.collecting_response_for == PROBE:
-			self.debug.log("Probe Location: {0}".format(probe_loc))
 			self.blit(self.probe, 5, probe_loc)
 
 		if self.collecting_response_for == BANDIT:
