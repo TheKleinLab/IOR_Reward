@@ -10,7 +10,7 @@ from klibs.KLKeyMap import KeyMap
 import random
 
 Params.default_fill_color = [65, 65, 65, 255]
-Params.suppress_debug_pane = True
+Params.dm_suppress_debug_pane = True
 Params.collect_demographics = False
 Params.practicing = False
 Params.eye_tracking = True
@@ -51,8 +51,8 @@ class IOR_Reward(klibs.Experiment):
 	response_window = 2000
 	cue_onset_duration = 1000
 	cue_presentation_duration = 350
-	ctoa_min = 700
-	ctoa_max = 1000
+	cotoa_min = 700
+	cotoa_max = 1000
 	pbra = 1000								# probe-bandit response asynchrony
 	bpoa = 1000								# bandit-probe onset asynchrony
 	high_bandit_payout_min = 8
@@ -60,6 +60,8 @@ class IOR_Reward(klibs.Experiment):
 	low_bandit_payout_min = 3
 	low_bandit_payout_max = 7
 	penalty = -5
+	cboa_key = None
+	cpoa_key = None
 
 	# Runtime vars (ie. defined on a per-trial or per-block basis)
 	high_value_color = None  				# block-level var
@@ -67,6 +69,7 @@ class IOR_Reward(klibs.Experiment):
 	left_bandit = None
 	right_bandit = None
 	collecting_response_for = None
+	log_cboa = None
 
 
 	def __init__(self, *args, **kwargs):
@@ -96,14 +99,9 @@ class IOR_Reward(klibs.Experiment):
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
 		self.rc.display_callback = self.display_refresh
-		if not Params.development_mode:
-			self.rc.audio_listener.calibrate()
-		else:
-			self.rc.audio_listener.threshold_valid = True
-			self.rc.audio_listener.threshold = 300
-			self.rc.audio_listener.calibrated = True
-		self.text_manager.add_style("score up", 48, [75,210,100,255])
-		self.text_manager.add_style("score down", 48, [210,75,75,255])
+		self.rc.audio_listener.calibrate()
+		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=False)
+		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=False)
 		self.text_manager.add_style("timeout", 48, [255,255,255,255])
 
 	def block(self, block_num):
@@ -116,8 +114,8 @@ class IOR_Reward(klibs.Experiment):
 
 	def trial_prep(self, trial_factors):
 		self.debug.log("trial_prep()")
-		self.collecting_response_for = None
 		self.clear()
+		self.rc.audio_listener.interrupts = False
 		# If probed trial, establish location of probe (default: left box)
 		if trial_factors[0] == PROBE or BOTH:
 			self.prepare_bandits(trial_factors[2])
@@ -129,44 +127,37 @@ class IOR_Reward(klibs.Experiment):
 		self.eyelink.drift_correct()
 
 	def trial(self, trial_factors):
-		self.debug.log("trial()")
-
 		# Trial Factors: 1) trial_type, 2) high_value_loc, 3) probe_loc, 4) cue_loc, 5) winning_bandit
-
 		self.eyelink.start(Params.trial_number)
 		self.present_neutral_boxes()
 		self.present_cues(trial_factors[4])
 		self.prepare_bandits(trial_factors[2])
 
-		# CUEING PERIOD
-		ctoa = random.choice(range(self.ctoa_min, self.ctoa_max, 1))
+		# CUEING PERIOD cotoa = cue offset, taget onset asynchrony
+		cotoa = random.choice(range(self.cotoa_min, self.cotoa_max, 1))
 		if trial_factors[1] == PROBE:
-			ctoa += self.bpoa
-		ctoa = Params.tk.countdown(ctoa, TK_MS)
-		self.debug.log("\nTRIAL: {0}".format(Params.trial_number))
-		self.debug.log("TRIAL TYPE: {0}".format(trial_factors[1]))
-		self.debug.log("CUEING PERIOD, CTOA: {0}".format(trial_factors[1], ctoa.duration))
-		while ctoa.counting():
+			cotoa += self.bpoa
+		cotoa = Params.tk.countdown(cotoa, TK_MS)
+		while cotoa.counting():
 			self.present_neutral_boxes()
 
 		#  BANDIT PRIMING PERIOD
 		bandit_priming_period = Params.tk.countdown(self.bpoa, TK_MS)
 		if trial_factors[1] in [BANDIT, BOTH]:
-			self.debug.log("BANDIT PRIMING PERIOD, BPOA: {0}".format(trial_factors[1], self.bpoa))
 			while bandit_priming_period.counting():
-				self.collecting_response_for = None
+				self.log_cboa = True  # one time only per trial, display_refresh() needs to record a time post-flip
 				self.display_refresh(trial_factors[1])
 
 		#  PROBE RESPONSE PERIOD
-		self.debug.log("PROBE RESPONSE PERIOD".format(trial_factors[1], self.bpoa))
-
 		if trial_factors[1] in [PROBE, BOTH]:
+			self.collecting_response_for = PROBE
 			self.rc.before_flip_callback = self.display_refresh
 			self.rc.before_flip_args = [trial_factors[1], trial_factors[3], False]
-			print self.rc.before_flip_callback
-			self.collecting_response_for = PROBE
+			self.rc.post_flip_tk_label = "cpoa"
 			self.rc.disable(RC_KEYPRESS)
 			self.rc.enable(RC_AUDIO)
+			if trial_factors[1] == PROBE:
+				self.rc.audio_listener.interrupts = True
 			self.rc.response_window = self.pbra
 			self.rc.collect()
 			if self.rc.audio_listener.responses[0][0] == self.rc.audio_listener.null_response:
@@ -176,7 +167,6 @@ class IOR_Reward(klibs.Experiment):
 					self.message("No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue.", 'timeout', registration=5, location=Params.screen_c, flip=True)
 					acknowledged = self.any_key()
 				raise TrialException("No vocal response.")
-
 		else:
 			bandit_response_delay = Params.tk.countdown(self.pbra, TK_MS)
 			while bandit_response_delay.counting():
@@ -184,15 +174,16 @@ class IOR_Reward(klibs.Experiment):
 
 		#  BANDIT RESPONSE PERIOD
 		if trial_factors [1] in [BANDIT, BOTH]:
+			self.collecting_response_for = BANDIT
 			self.rc.before_flip_callback = self.display_refresh
 			self.rc.before_flip_args = [trial_factors[1], False, False]
-			self.debug.log("BANDIT RESPONSE PERIOD".format(trial_factors[1], self.bpoa))
-			self.collecting_response_for = BANDIT
+			self.rc.post_flip_sample_key = None
 			self.rc.display_args = [trial_factors[1], False]
 			self.rc.enable(RC_KEYPRESS)
 			self.rc.disable(RC_AUDIO)
 			self.rc.collect()
-
+		self.fill()
+		self.flip()  # get the stimuli off screen quickly whilst text renders
 		#  FEEDBACK PERIOD
 		if trial_factors[1] in [BANDIT, BOTH]:
 			self.feedback(self.rc.keypress_listener.responses[0][0], trial_factors[1], trial_factors[2], trial_factors[5])
@@ -224,7 +215,9 @@ class IOR_Reward(klibs.Experiment):
 		"high_value_loc": trial_factors[2],
 		"winning_bandit": trial_factors[5],
 		"probe_loc": trial_factors[3],
-		"cue_loc": trial_factors[4]
+		"cue_loc": trial_factors[4],
+		"cpoa": Params.tk.period('cpoa') if trial_factors[1] in [PROBE, BOTH] else "N/A",
+		"cboa": Params.tk.period('cboa') if trial_factors[1] in [BANDIT, BOTH] else "N/A"
 		}
 
 	def trial_clean_up(self, trial_id,  trial_factors):
@@ -234,6 +227,7 @@ class IOR_Reward(klibs.Experiment):
 		pass
 
 	def feedback(self, response, trial_type, high_value_loc, winning_bandit):
+		Params.tk.start('feedback')
 		if trial_type in (BANDIT, BOTH):
 			if response == "z":
 				response = LEFT
@@ -258,6 +252,7 @@ class IOR_Reward(klibs.Experiment):
 				style = "timeout"
 			self.fill()
 			self.message(message, style, registration=5,  location=Params.screen_c, flip=True)
+
 			self.any_key()
 
 	def bandit_payout(self, bandit):
@@ -293,8 +288,9 @@ class IOR_Reward(klibs.Experiment):
 			if not Params.eye_tracker_available:
 				self.blit(cursor())
 			self.flip()
-			if not self.eyelink.within_boundary('fixation'):
-				raise TrialException("Eyes must remain at fixation")
+			Params.tk.start("cpoa")
+			Params.tk.start("cboa", Params.tk.read("cpoa")[0])
+			self.confirm_fixation()
 
 	def present_neutral_boxes(self, pre_trial_blit=False):
 		cue_onset = Params.tk.countdown(self.cue_onset_duration, TK_MS)
@@ -307,10 +303,13 @@ class IOR_Reward(klibs.Experiment):
 			if not Params.eye_tracker_available:
 				self.blit(cursor())
 			self.flip()
-			if not self.eyelink.within_boundary('fixation'):
-				self.fill()
-				self.message("Eyes moved. Please keep your eyes at fixation.", 'timeout', location=Params.screen_c, registration=5)
-				raise TrialException("Eyes must remain at fixation")
+			self.confirm_fixation()
+
+	def confirm_fixation(self):
+		if not self.eyelink.within_boundary('fixation'):
+			self.fill()
+			self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5)
+			raise TrialException("Eyes must remain at fixation")
 
 	def display_refresh(self, trial_type, probe_loc=None, flip=True):
 		self.fill()
@@ -333,3 +332,7 @@ class IOR_Reward(klibs.Experiment):
 			self.blit(self.star, 5, Params.screen_c)
 		if flip:
 			self.flip()
+			if self.log_cboa:
+				Params.tk.stop("cboa")
+				self.log_cboa = False
+		self.confirm_fixation()
