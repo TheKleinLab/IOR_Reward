@@ -62,6 +62,13 @@ class IOR_Reward(klibs.Experiment):
 	penalty = -5
 	cboa_key = None
 	cpoa_key = None
+	low_penalty_msg = None
+	low_reward_msg = None
+	high_penalty_msg = None
+	high_reward_msg = None
+	bandit_timeout_msg = None
+	probe_timeout_msg = None
+	fixation_fail_msg = None
 
 	# Runtime vars (ie. defined on a per-trial or per-block basis)
 	high_value_color = None  				# block-level var
@@ -70,6 +77,8 @@ class IOR_Reward(klibs.Experiment):
 	right_bandit = None
 	collecting_response_for = None
 	log_cboa = None
+	low_payout = None
+	high_payout = None
 
 
 	def __init__(self, *args, **kwargs):
@@ -92,17 +101,42 @@ class IOR_Reward(klibs.Experiment):
 		fix_x_2 = (Params.screen_c[0] + self.star_size_px //2) + 30
 		fix_y_2 = (Params.screen_c[1] + self.star_size_px //2) + 30
 		self.eyelink.add_gaze_boundary('fixation', [(fix_x_1, fix_y_1), (fix_x_2, fix_y_2)], EL_RECT_BOUNDARY)
+		self.text_manager.default_color = [255,255,255,255]
+		self.text_manager.add_style("score up", 48, [75,210,100,255])
+		self.text_manager.add_style("score down", 48, [210,75,75,255])
+		self.text_manager.add_style("timeout", 48, [255,255,255,255])
+		self.rc.audio_listener.calibrate()
+		probe_timeout_text = "No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue."
+		self.probe_timeout_msg = self.message(probe_timeout_text, 'timeout', blit=False)
+		self.bandit_timeout_msg = self.message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit=False)
+
+	def setup_response_collector(self, trial_factors):
+		self.rc.display_args = [trial_factors[1], trial_factors[3]]
 		self.rc.uses([RC_AUDIO, RC_KEYPRESS])
+		self.rc.before_flip_callback = self.display_refresh
+		self.rc.display_callback = self.display_refresh
 		self.rc.keypress_listener.interrupts = True
 		self.rc.keypress_listener.min_response_count = 1
 		self.rc.audio_listener.min_response_count = 1
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
-		self.rc.display_callback = self.display_refresh
-		self.rc.audio_listener.calibrate()
-		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=False)
-		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=False)
-		self.text_manager.add_style("timeout", 48, [255,255,255,255])
+		if self.collecting_response_for == PROBE:
+			if trial_factors[1] == PROBE:
+				self.rc.audio_listener.interrupts = False
+			self.rc.post_flip_tk_label = "cpoa"
+			self.rc.audio_listener.interrupts = True
+			self.rc.response_window = self.pbra
+			self.rc.disable(RC_KEYPRESS)
+			self.rc.enable(RC_AUDIO)
+			self.rc.before_flip_args = [trial_factors[1], trial_factors[3], False]
+		elif self.collecting_response_for == BANDIT:
+			self.rc.before_flip_callback = self.display_refresh
+			self.rc.before_flip_args = [trial_factors[1], False, False]
+			self.rc.post_flip_sample_key = None
+			self.rc.display_args = [trial_factors[1], False]
+			self.rc.enable(RC_KEYPRESS)
+			self.rc.disable(RC_AUDIO)
+
 
 	def block(self, block_num):
 		if self.high_value_color in [RED, None]:
@@ -115,7 +149,7 @@ class IOR_Reward(klibs.Experiment):
 	def trial_prep(self, trial_factors):
 		self.debug.log("trial_prep()")
 		self.clear()
-		self.rc.audio_listener.interrupts = False
+		self.collecting_response_for
 		# If probed trial, establish location of probe (default: left box)
 		if trial_factors[0] == PROBE or BOTH:
 			self.prepare_bandits(trial_factors[2])
@@ -123,7 +157,13 @@ class IOR_Reward(klibs.Experiment):
 				self.probe_loc = self.right_box_loc
 		if trial_factors[0] == BANDIT:
 			self.prepare_bandits(trial_factors[2])
-		self.rc.display_args = [trial_factors[1], trial_factors[3]]
+		high_payout = self.bandit_payout(HIGH)
+		low_payout = self.bandit_payout(LOW)
+		bandit_text = "You {0} {1} points!\n Press any key to continue."
+		self.low_penalty_msg = self.message(bandit_text.format("lost", low_payout), "score down", blit=False)
+		self.high_penalty_msg = self.message(bandit_text.format("lost", high_payout), "score down", blit=False)
+		self.low_reward_msg = self.message(bandit_text.format("won", low_payout), "score up", blit=False)
+		self.high_reward_msg = self.message(bandit_text.format("won", high_payout), "score up", blit=False)
 		self.eyelink.drift_correct()
 
 	def trial(self, trial_factors):
@@ -151,20 +191,13 @@ class IOR_Reward(klibs.Experiment):
 		#  PROBE RESPONSE PERIOD
 		if trial_factors[1] in [PROBE, BOTH]:
 			self.collecting_response_for = PROBE
-			self.rc.before_flip_callback = self.display_refresh
-			self.rc.before_flip_args = [trial_factors[1], trial_factors[3], False]
-			self.rc.post_flip_tk_label = "cpoa"
-			self.rc.disable(RC_KEYPRESS)
-			self.rc.enable(RC_AUDIO)
-			if trial_factors[1] == PROBE:
-				self.rc.audio_listener.interrupts = True
-			self.rc.response_window = self.pbra
+			self.setup_response_collector(trial_factors)
 			self.rc.collect()
+			print "probe collection ended: {0}".format(Params.tk.elapsed('exiting'))
 			if self.rc.audio_listener.responses[0][0] == self.rc.audio_listener.null_response:
 				acknowledged = False
 				while not acknowledged:
 					self.fill()
-					self.message("No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue.", 'timeout', registration=5, location=Params.screen_c, flip=True)
 					acknowledged = self.any_key()
 				raise TrialException("No vocal response.")
 		else:
@@ -175,15 +208,15 @@ class IOR_Reward(klibs.Experiment):
 		#  BANDIT RESPONSE PERIOD
 		if trial_factors [1] in [BANDIT, BOTH]:
 			self.collecting_response_for = BANDIT
-			self.rc.before_flip_callback = self.display_refresh
-			self.rc.before_flip_args = [trial_factors[1], False, False]
-			self.rc.post_flip_sample_key = None
-			self.rc.display_args = [trial_factors[1], False]
-			self.rc.enable(RC_KEYPRESS)
-			self.rc.disable(RC_AUDIO)
+			self.setup_response_collector(trial_factors)
 			self.rc.collect()
+			print "bandit collection ended: {0}".format(Params.tk.elapsed('exiting'))
+
+		# get the stimuli off screen quickly whilst text renders
 		self.fill()
-		self.flip()  # get the stimuli off screen quickly whilst text renders
+		self.flip()
+		print "post-response flip: {0}".format(Params.tk.elapsed('exiting'))
+
 		#  FEEDBACK PERIOD
 		if trial_factors[1] in [BANDIT, BOTH]:
 			self.feedback(self.rc.keypress_listener.responses[0][0], trial_factors[1], trial_factors[2], trial_factors[5])
@@ -227,7 +260,6 @@ class IOR_Reward(klibs.Experiment):
 		pass
 
 	def feedback(self, response, trial_type, high_value_loc, winning_bandit):
-		Params.tk.start('feedback')
 		if trial_type in (BANDIT, BOTH):
 			if response == "z":
 				response = LEFT
@@ -235,24 +267,30 @@ class IOR_Reward(klibs.Experiment):
 				response = RIGHT
 			else:
 				response = False
+			timeout = False
 			if response and response == winning_bandit:
-				score = self.bandit_payout(HIGH) if response == high_value_loc else self.bandit_payout(LOW)
-				verb = "won"
+				won = True
 			elif response:
-				score = self.penalty
-				verb = "lost"
+				won = False
 			else:
-				score = None
+				timeout = True
 
-			if score:
-				message = "You {0} {1} points!\n Press any key to continue.".format(verb, score)
-				style = "score up" if score > 0 else "score down"
+			if not timeout:
+				if high_value_loc == response:
+					if won:
+						message = self.high_reward_msg
+					else:
+						message = self.high_penalty_msg
+				else:
+					if won:
+						message = self.low_reward_msg
+					else:
+						message = self.low_penalty_msg
 			else:
-				message = "Timed out; trial recycled.\n Press any key to continue."
-				style = "timeout"
+				message = self.bandit_timeout_msg
 			self.fill()
-			self.message(message, style, registration=5,  location=Params.screen_c, flip=True)
-
+			self.blit(message, location=Params.screen_c, registration=5)
+			self.flip()
 			self.any_key()
 
 	def bandit_payout(self, bandit):
