@@ -11,6 +11,7 @@ import random
 
 Params.default_fill_color = [65, 65, 65, 255]
 Params.dm_suppress_debug_pane = True
+Params.dm_auto_threshold = False
 Params.collect_demographics = False
 Params.practicing = False
 Params.eye_tracking = True
@@ -149,7 +150,7 @@ class IOR_Reward(klibs.Experiment):
 	def trial_prep(self, trial_factors):
 		self.debug.log("trial_prep()")
 		self.clear()
-		self.collecting_response_for
+		self.collecting_response_for = None
 		# If probed trial, establish location of probe (default: left box)
 		if trial_factors[0] == PROBE or BOTH:
 			self.prepare_bandits(trial_factors[2])
@@ -193,11 +194,12 @@ class IOR_Reward(klibs.Experiment):
 			self.collecting_response_for = PROBE
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
-			print "probe collection ended: {0}".format(Params.tk.elapsed('exiting'))
 			if self.rc.audio_listener.responses[0][0] == self.rc.audio_listener.null_response:
 				acknowledged = False
 				while not acknowledged:
 					self.fill()
+					self.blit(self.probe_timeout_msg, location=Params.screen_c, registration=5)
+					self.flip()
 					acknowledged = self.any_key()
 				raise TrialException("No vocal response.")
 		else:
@@ -210,12 +212,10 @@ class IOR_Reward(klibs.Experiment):
 			self.collecting_response_for = BANDIT
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
-			print "bandit collection ended: {0}".format(Params.tk.elapsed('exiting'))
 
 		# get the stimuli off screen quickly whilst text renders
 		self.fill()
 		self.flip()
-		print "post-response flip: {0}".format(Params.tk.elapsed('exiting'))
 
 		#  FEEDBACK PERIOD
 		if trial_factors[1] in [BANDIT, BOTH]:
@@ -345,15 +345,20 @@ class IOR_Reward(klibs.Experiment):
 
 	def confirm_fixation(self):
 		if not self.eyelink.within_boundary('fixation'):
-			self.fill()
-			self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5)
+			acknowledged = False
+			while not acknowledged:
+				self.fill()
+				self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5)
+				self.flip()
+				self.any_key()
 			raise TrialException("Eyes must remain at fixation")
 
 	def display_refresh(self, trial_type, probe_loc=None, flip=True):
 		self.fill()
-		probe_loc = self.left_box_loc
 		if probe_loc == RIGHT:
 			probe_loc = self.right_box_loc
+		else:
+			probe_loc = self.left_box_loc
 		if trial_type in (BANDIT, BOTH):
 			self.blit(self.left_bandit, 5, self.left_box_loc)
 			self.blit(self.right_bandit, 5, self.right_box_loc)
