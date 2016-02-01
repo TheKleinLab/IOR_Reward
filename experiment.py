@@ -11,11 +11,11 @@ import random
 
 Params.default_fill_color = [65, 65, 65, 255]
 Params.dm_suppress_debug_pane = True
-Params.dm_auto_threshold = False
+Params.dm_auto_threshold = True
 Params.collect_demographics = False
 Params.practicing = False
 Params.eye_tracking = True
-Params.eye_tracker_available = True
+Params.eye_tracker_available = False
 
 Params.blocks_per_experiment = 1
 Params.trials_per_block = 100
@@ -54,12 +54,10 @@ class IOR_Reward(klibs.Experiment):
 	cue_presentation_duration = 350
 	cotoa_min = 700
 	cotoa_max = 1000
-	pbra = 2000								# probe-bandit response asynchrony
+	pbra = 1000								# probe-bandit response asynchrony
 	bpoa = 1000								# bandit-probe onset asynchrony
-	high_bandit_payout_min = 8
-	high_bandit_payout_max = 12
-	low_bandit_payout_min = 3
-	low_bandit_payout_max = 7
+	high_bandit_payout = 10
+	low_bandit_payout = 5
 	penalty = -5
 	cboa_key = None
 	cpoa_key = None
@@ -110,7 +108,11 @@ class IOR_Reward(klibs.Experiment):
 		probe_timeout_text = "No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue."
 		self.probe_timeout_msg = self.message(probe_timeout_text, 'timeout', blit=False)
 		self.bandit_timeout_msg = self.message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit=False)
-		self.fixation_fail_msg = 				self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
+		self.fixation_fail_msg = self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
+		self.low_penalty_msg = self.message(bandit_text.format("lost", self.low_payout), "score down", blit=False)
+		self.high_penalty_msg = self.message(bandit_text.format("lost", self.high_payout), "score down", blit=False)
+		self.low_reward_msg = self.message(bandit_text.format("won", self.low_payout), "score up", blit=False)
+		self.high_reward_msg = self.message(bandit_text.format("won", self.high_payout), "score up", blit=False)
 
 	def setup_response_collector(self, trial_factors):
 		self.rc.display_args = [trial_factors[1], trial_factors[3]]
@@ -163,10 +165,6 @@ class IOR_Reward(klibs.Experiment):
 		high_payout = self.bandit_payout(HIGH)
 		low_payout = self.bandit_payout(LOW)
 		bandit_text = "You {0} {1} points!\n Press any key to continue."
-		self.low_penalty_msg = self.message(bandit_text.format("lost", low_payout), "score down", blit=False)
-		self.high_penalty_msg = self.message(bandit_text.format("lost", high_payout), "score down", blit=False)
-		self.low_reward_msg = self.message(bandit_text.format("won", low_payout), "score up", blit=False)
-		self.high_reward_msg = self.message(bandit_text.format("won", high_payout), "score up", blit=False)
 		self.eyelink.drift_correct()
 
 	def trial(self, trial_factors):
@@ -350,7 +348,6 @@ class IOR_Reward(klibs.Experiment):
 			acknowledged = False
 			while not acknowledged:
 				self.fill()
-				self.blit(self.
 				self.blit(self.fixation_fail_msg, location=Params.screen_c, registration=5)
 				self.flip()
 				acknowledged = self.any_key()
