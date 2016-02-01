@@ -10,12 +10,12 @@ from klibs.KLKeyMap import KeyMap
 import random
 
 Params.default_fill_color = [65, 65, 65, 255]
-Params.dm_suppress_debug_pane = True
+Params.default_color = [255,255,255,255]
 Params.dm_auto_threshold = True
 Params.collect_demographics = False
 Params.practicing = False
 Params.eye_tracking = True
-Params.eye_tracker_available = False
+Params.eye_tracker_available = True
 
 Params.blocks_per_experiment = 1
 Params.trials_per_block = 100
@@ -76,12 +76,13 @@ class IOR_Reward(klibs.Experiment):
 	right_bandit = None
 	collecting_response_for = None
 	log_cboa = None
-	low_payout = None
-	high_payout = None
+	low_payout = 5
+	high_payout = 10
 
 
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
+		Params.default_color = [255, 255, 255, 255]
 		self.debug.display_location = "LEFT"
 		self.square_size_px = deg_to_px(self.square_size)
 		self.star_size_px = deg_to_px(self.star_size)
@@ -101,11 +102,12 @@ class IOR_Reward(klibs.Experiment):
 		fix_y_2 = (Params.screen_c[1] + self.star_size_px //2) + 60
 		self.eyelink.add_gaze_boundary('fixation', [(fix_x_1, fix_y_1), (fix_x_2, fix_y_2)], EL_RECT_BOUNDARY)
 		self.text_manager.default_color = [255,255,255,255]
-		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=False)
-		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=False)
+		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=True)
+		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=True)
 		self.text_manager.add_style("timeout", 48, [255,255,255,255])
 		self.rc.audio_listener.calibrate()
 		probe_timeout_text = "No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue."
+		bandit_text = "You {0} {1} points!\n Press any key to continue."
 		self.probe_timeout_msg = self.message(probe_timeout_text, 'timeout', blit=False)
 		self.bandit_timeout_msg = self.message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit=False)
 		self.fixation_fail_msg = self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
@@ -125,9 +127,9 @@ class IOR_Reward(klibs.Experiment):
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
 		if self.collecting_response_for == PROBE:
-			self.rc.audio_listener.interrupts = True
+			self.rc.audio_listener.interrupts = False
 			if trial_factors[1] == PROBE:
-				self.rc.audio_listener.interrupts = False
+				self.rc.audio_listener.interrupts = True
 			self.rc.post_flip_tk_label = "cpoa"
 			self.rc.audio_listener.interrupts = True
 			self.rc.response_window = self.pbra
@@ -135,12 +137,11 @@ class IOR_Reward(klibs.Experiment):
 			self.rc.enable(RC_AUDIO)
 			self.rc.before_flip_args = [trial_factors[1], trial_factors[3], False]
 		elif self.collecting_response_for == BANDIT:
-			self.rc.before_flip_callback = self.display_refresh
-			self.rc.before_flip_args = [trial_factors[1], False, False]
 			self.rc.post_flip_sample_key = None
 			self.rc.display_args = [trial_factors[1], False]
 			self.rc.enable(RC_KEYPRESS)
 			self.rc.disable(RC_AUDIO)
+			self.rc.before_flip_args = [trial_factors[1], False, False]
 
 
 	def block(self, block_num):
@@ -152,7 +153,6 @@ class IOR_Reward(klibs.Experiment):
 			self.low_value_color = BLUE
 
 	def trial_prep(self, trial_factors):
-		self.debug.log("trial_prep()")
 		self.clear()
 		self.collecting_response_for = None
 		# If probed trial, establish location of probe (default: left box)
@@ -162,9 +162,6 @@ class IOR_Reward(klibs.Experiment):
 				self.probe_loc = self.right_box_loc
 		if trial_factors[0] == BANDIT:
 			self.prepare_bandits(trial_factors[2])
-		high_payout = self.bandit_payout(HIGH)
-		low_payout = self.bandit_payout(LOW)
-		bandit_text = "You {0} {1} points!\n Press any key to continue."
 		self.eyelink.drift_correct()
 
 	def trial(self, trial_factors):
@@ -293,11 +290,6 @@ class IOR_Reward(klibs.Experiment):
 			self.flip()
 			self.any_key()
 
-	def bandit_payout(self, bandit):
-		min_val = self.high_bandit_payout_min if bandit == HIGH else self.low_bandit_payout_min
-		max_val = self.high_bandit_payout_max if bandit == HIGH else self.low_bandit_payout_max
-		return random.choice(range(min_val, max_val, 1))
-
 	def prepare_bandits(self, high_value_loc):
 		if high_value_loc == LEFT:
 			self.thin_rect.fill = self.high_value_color
@@ -365,6 +357,7 @@ class IOR_Reward(klibs.Experiment):
 		else:
 			self.blit(self.neutral_box, 5, self.left_box_loc)
 			self.blit(self.neutral_box, 5, self.right_box_loc)
+
 		if self.collecting_response_for == PROBE:
 			self.blit(self.probe, 5, probe_loc)
 
