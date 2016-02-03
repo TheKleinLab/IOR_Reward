@@ -1,4 +1,5 @@
 __author__ = "Brett Feltmate"
+# works with, at least, KLIBs commit: 2b519bd9c736fb9de6229602145cefe6dd2331b9
 
 import klibs
 from klibs import Params
@@ -56,8 +57,11 @@ class IOR_Reward(klibs.Experiment):
 	cotoa_max = 1000
 	pbra = 1000								# probe-bandit response asynchrony
 	bpoa = 1000								# bandit-probe onset asynchrony
-	high_bandit_payout = 10
-	low_bandit_payout = 5
+	high_bandit_payout_baseline = 12
+	low_bandit_payout_baseline = 5
+	high_bandit_messages = []				# messages are pre-rendered to save time between trials
+	low_bandit_messages = []
+	bandit_payout_variance = 1
 	penalty = -5
 	cboa_key = None
 	cpoa_key = None
@@ -113,6 +117,10 @@ class IOR_Reward(klibs.Experiment):
 		self.fixation_fail_msg = self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
 		self.low_penalty_msg = self.message(bandit_text.format("lost", self.low_payout), "score down", blit=False)
 		self.high_penalty_msg = self.message(bandit_text.format("lost", self.high_payout), "score down", blit=False)
+		for i in range(self.low_bandit_payout_baseline - self.bandit_payout_variance, self.low_bandit_payout_baseline + self.bandit_payout_variance):
+			self.low_bandit_messages.append([i, self.message(bandit_text.format("won", i), "score up", blit=False)])
+		for i in range(self.high_bandit_payout_baseline - self.bandit_payout_variance, self.high_bandit_payout_baseline + self.bandit_payout_variance):
+			self.high_bandit_messages.append([i,self.message(bandit_text.format("won", i), "score up", blit=False)])
 		self.low_reward_msg = self.message(bandit_text.format("won", self.low_payout), "score up", blit=False)
 		self.high_reward_msg = self.message(bandit_text.format("won", self.high_payout), "score up", blit=False)
 
@@ -215,9 +223,9 @@ class IOR_Reward(klibs.Experiment):
 		self.flip()
 
 		#  FEEDBACK PERIOD
+		reward = "N/A"
 		if trial_factors[1] in [BANDIT, BOTH]:
-			self.feedback(self.rc.keypress_listener.responses[0][0], trial_factors[1], trial_factors[2], trial_factors[5])
-
+			reward =self.feedback(self.rc.keypress_listener.responses[0][0], trial_factors[1], trial_factors[2], trial_factors[5])
 		try:
 			audio_rt = self.rc.audio_listener.responses[0][1]
 			audio_timeout = self.rc.audio_listener.responses[0][1] == TIMEOUT
@@ -244,6 +252,7 @@ class IOR_Reward(klibs.Experiment):
 		"trial_type": trial_factors[1],
 		"high_value_loc": trial_factors[2],
 		"winning_bandit": trial_factors[5],
+		"reward": reward,
 		"probe_loc": trial_factors[3],
 		"cue_loc": trial_factors[4],
 		"cpoa": Params.tk.period('cpoa') if trial_factors[1] in [PROBE, BOTH] else "N/A",
@@ -271,16 +280,20 @@ class IOR_Reward(klibs.Experiment):
 				won = False
 			else:
 				timeout = True
-
+			high_win = random.choice(self.high_bandit_messages)
+			low_win = random.choice(self.low_bandit_messages)
+			reward = self.penalty
 			if not timeout:
 				if high_value_loc == response:
 					if won:
-						message = self.high_reward_msg
+						message = high_win[1]
+						reward = high_win[0]
 					else:
 						message = self.high_penalty_msg
 				else:
 					if won:
-						message = self.low_reward_msg
+						message = low_win[1]
+						reward = low_win[0]
 					else:
 						message = self.low_penalty_msg
 			else:
@@ -289,6 +302,7 @@ class IOR_Reward(klibs.Experiment):
 			self.blit(message, location=Params.screen_c, registration=5)
 			self.flip()
 			self.any_key()
+			return reward
 
 	def prepare_bandits(self, high_value_loc):
 		if high_value_loc == LEFT:
