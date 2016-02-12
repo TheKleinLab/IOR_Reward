@@ -199,6 +199,8 @@ class IOR_Reward(klibs.Experiment):
 			self.collecting_response_for = PROBE
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
+			if self.rc.audio_listener.responses[0][1] != TIMEOUT:
+				self.evi.send("DetectProbe")
 			if self.rc.audio_listener.responses[0][0] == self.rc.audio_listener.null_response:
 				acknowledged = False
 				while not acknowledged:
@@ -207,6 +209,7 @@ class IOR_Reward(klibs.Experiment):
 					self.flip()
 					acknowledged = self.any_key()
 				raise TrialException("No vocal response.")
+			
 		else:
 			bandit_response_delay = Params.tk.countdown(self.pbra, TK_MS)
 			while bandit_response_delay.counting():
@@ -217,6 +220,10 @@ class IOR_Reward(klibs.Experiment):
 			self.collecting_response_for = BANDIT
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
+
+		"""
+
+		"""
 
 		# get the stimuli off screen quickly whilst text renders
 		self.fill()
@@ -266,6 +273,8 @@ class IOR_Reward(klibs.Experiment):
 		pass
 
 	def feedback(self, response, trial_type, high_value_loc, winning_bandit):
+		event = "WinHigh"
+
 		if trial_type in (BANDIT, BOTH):
 			if response == "z":
 				response = LEFT
@@ -286,21 +295,48 @@ class IOR_Reward(klibs.Experiment):
 			if not timeout:
 				if high_value_loc == response:
 					if won:
+						if trial_type == BOTH:
+							if probe_loc == high_value_loc:
+								event = "WinHighProbeHigh"
+							else:
+								event = "WinHighProbeLow"
 						message = high_win[1]
 						reward = high_win[0]
 					else:
+						if trial_type == BOTH:
+							if probe_loc == high_value_loc:
+								event = "LossHighProbeHigh"
+							else:
+								event = "LossHighProbeLow"
+						else:
+							event = "LossHigh"
 						message = self.high_penalty_msg
 				else:
 					if won:
+						if trial_type == BOTH:
+							if probe_loc == high_value_loc:
+								event = "WinLowProbeHigh"
+							else:
+								event = "WinLowProbeLow"
+						else:
+							event = "WinLow"
 						message = low_win[1]
 						reward = low_win[0]
 					else:
+						if trial_type == BOTH:
+							if probe_loc == high_value_loc:
+								event = "LossLowProbeHigh"
+							else:
+								event = "LossLowProbeLow"
+						else:
+							event = "LossLow"
 						message = self.low_penalty_msg
 			else:
 				message = self.bandit_timeout_msg
 			self.fill()
 			self.blit(message, location=Params.screen_c, registration=5)
 			self.flip()
+			self.evi.send(event)
 			self.any_key()
 			return reward
 
@@ -324,6 +360,12 @@ class IOR_Reward(klibs.Experiment):
 
 		# present cue
 		cue_presentation = Params.tk.countdown(self.cue_presentation_duration, TK_MS)
+		event = "LeftCue"
+		if cue_condition == RIGHT:
+			event = "RightCue"
+		elif cue_condition == DOUBLE:
+			event = "DouCue"
+
 		while cue_presentation.counting():
 			self.fill()
 			self.blit(left_box, 5, self.left_box_loc)
@@ -332,6 +374,7 @@ class IOR_Reward(klibs.Experiment):
 			if not Params.eye_tracker_available:
 				self.blit(cursor())
 			self.flip()
+			self.evi.send(event)
 			Params.tk.start("cpoa")
 			Params.tk.start("cboa", Params.tk.read("cpoa")[0])
 			self.confirm_fixation()
@@ -351,6 +394,7 @@ class IOR_Reward(klibs.Experiment):
 
 	def confirm_fixation(self):
 		if not self.eyelink.within_boundary('fixation'):
+			self.evi.send("DepartFix")
 			acknowledged = False
 			while not acknowledged:
 				self.fill()
@@ -360,14 +404,34 @@ class IOR_Reward(klibs.Experiment):
 			raise TrialException("Eyes must remain at fixation")
 
 	def display_refresh(self, trial_type, probe_loc=None, flip=True):
+		bandit = False
+		if trial_type == BANDIT: 
+			bandit = True
+			bandit_event = "HighBandRight"
+
+		probed = False
+		if trial_type == PROBE: 
+			probed = True
+			probe_event = "ProbeRight"
+
+		both = False
+		if trial_type == BOTH:
+			both = True
+			both_event = "ProbeHigh"
+
 		self.fill()
 		if probe_loc == RIGHT:
 			probe_loc = self.right_box_loc
 		else:
 			probe_loc = self.left_box_loc
+			probe_event = "ProbeLeft"
 		if trial_type in (BANDIT, BOTH):
 			self.blit(self.left_bandit, 5, self.left_box_loc)
 			self.blit(self.right_bandit, 5, self.right_box_loc)
+			if high_value_loc == LEFT:
+				bandit_event = "HighBandLeft"
+				if BOTH and probe_loc == LEFT:
+					both_event = "ProbeLow"
 		else:
 			self.blit(self.neutral_box, 5, self.left_box_loc)
 			self.blit(self.neutral_box, 5, self.right_box_loc)
@@ -375,12 +439,22 @@ class IOR_Reward(klibs.Experiment):
 		if self.collecting_response_for == PROBE:
 			self.blit(self.probe, 5, probe_loc)
 
+		fixmute = False
 		if self.collecting_response_for == BANDIT:
 			self.blit(self.star_muted, 5, Params.screen_c)
+			fixmute = True
 		else:
 			self.blit(self.star, 5, Params.screen_c)
 		if flip:
 			self.flip()
+			if fixmute:
+				self.evi.send("FixMute")
+			if probed:
+				self.evi.send(probe_event)
+			if bandit:
+				self.evi.send(bandit_event)
+			if both:
+				self.evi.send(both_event)
 			if self.log_cboa:
 				Params.tk.stop("cboa")
 				self.log_cboa = False
