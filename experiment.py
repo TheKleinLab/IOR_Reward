@@ -220,6 +220,16 @@ class IOR_Reward(klibs.Experiment):
 			self.collecting_response_for = BANDIT
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
+			if self.rc.keypress_listener.responses[0][0] == LEFT:
+				if self.high_value_loc == LEFT:
+					self.evi.send("SelectHighBand")
+				else:
+					self.evi.send("SelectLowBand")
+			if self.rc.keypress_listener.responses[0][0] == RIGHT:
+				if self.high_value_loc == RIGHT:
+					self.evi.send("SelectHighBand")
+				else:
+					self.evi.send("SelectLowBand")
 
 		"""
 
