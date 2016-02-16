@@ -82,6 +82,8 @@ class IOR_Reward(klibs.Experiment):
 	log_cboa = None
 	low_payout = 5
 	high_payout = 10
+	prob_loc = None
+	high_value_loc = None
 
 
 	def __init__(self, *args, **kwargs):
@@ -171,6 +173,8 @@ class IOR_Reward(klibs.Experiment):
 		if trial_factors[0] == BANDIT:
 			self.prepare_bandits(trial_factors[2])
 		self.eyelink.drift_correct()
+		self.probe_loc = trial_factors[3]
+		self.high_value_loc = trial_factors[2]
 
 	def trial(self, trial_factors):
 		# Trial Factors: 1) trial_type, 2) high_value_loc, 3) probe_loc, 4) cue_loc, 5) winning_bandit
@@ -306,7 +310,7 @@ class IOR_Reward(klibs.Experiment):
 				if high_value_loc == response:
 					if won:
 						if trial_type == BOTH:
-							if probe_loc == high_value_loc:
+							if self.probe_loc == high_value_loc:
 								event = "WinHighProbeHigh"
 							else:
 								event = "WinHighProbeLow"
@@ -314,7 +318,7 @@ class IOR_Reward(klibs.Experiment):
 						reward = high_win[0]
 					else:
 						if trial_type == BOTH:
-							if probe_loc == high_value_loc:
+							if self.probe_loc == high_value_loc:
 								event = "LossHighProbeHigh"
 							else:
 								event = "LossHighProbeLow"
@@ -324,7 +328,7 @@ class IOR_Reward(klibs.Experiment):
 				else:
 					if won:
 						if trial_type == BOTH:
-							if probe_loc == high_value_loc:
+							if self.probe_loc == high_value_loc:
 								event = "WinLowProbeHigh"
 							else:
 								event = "WinLowProbeLow"
@@ -334,7 +338,7 @@ class IOR_Reward(klibs.Experiment):
 						reward = low_win[0]
 					else:
 						if trial_type == BOTH:
-							if probe_loc == high_value_loc:
+							if self.probe_loc == high_value_loc:
 								event = "LossLowProbeHigh"
 							else:
 								event = "LossLowProbeLow"
@@ -438,7 +442,7 @@ class IOR_Reward(klibs.Experiment):
 		if trial_type in (BANDIT, BOTH):
 			self.blit(self.left_bandit, 5, self.left_box_loc)
 			self.blit(self.right_bandit, 5, self.right_box_loc)
-			if high_value_loc == LEFT:
+			if self.high_value_loc == LEFT:
 				bandit_event = "HighBandLeft"
 				if BOTH and probe_loc == LEFT:
 					both_event = "ProbeLow"
