@@ -33,7 +33,7 @@
 #
 # *** The bracketed values (ie. text) in first row, below, are placeholders only.
 #	  Replace these values with your first event and then create new rows as needed. ***
-#
+
 DouCue, 0, True, 100, Double Cue
 LeftCue, 0, True, 101, Left Cue
 RightCue,0, True, 102, Right Cue
@@ -41,18 +41,11 @@ HighBandLeft, 0, True, 120, High Bandit Presented Left
 HighBandRight, 0, True, 121, High Bandit Presented Right
 ProbeLeft, 0, True, 122, Probe Presented Left
 ProbeRight, 0, True, 123, Probe Presented Right
-ProbeHighLeft, 0, True, 124, Probe Presented Over High Bandit Left
-ProbeHighRight, 0, True, 125, Probe Presented Over High Bandit Right
-ProbeLowLeft, 0, True, 126, Probe Presented Over Low Bandit Left
-ProbeLowRight, 0, True, 127, Probe Presented Over Low Bandit Right
+ProbeHigh, 0, True, 124, Probe Presented Over High Bandit 
+ProbeLow, 0, True, 126, Probe Presented Over Low Bandit
 SelectHighBand, 0, True, 140, Selected High Bandit
 SelectLowBand, 0, True, 141, Selected Low Bandit
-DetectProbeLeft, 0, True, 142, Detected Probe Left
-DetectProbeRight, 0, True, 143, Detected Probe Right
-SelectHighProbeHigh, 0, True, 144, Selected High Bandit After Probe High
-SelectHighProbeLow, 0, True, 145, Selected High Bandit After Probe Low
-SelectLowProbeHigh, 0, True, 146, Selected Low Bandit After Probe High
-SelectLowProbeLow, 0, True, 147, Selected Low Bandit After Probe Low
+DetectProbe, 0, True, 142, Detected Probe
 WinHigh, 0, True, 160, Win Selecting High Bandit
 LossHigh, 0, True, 161, Loss Selecting Low Bandit
 WinLow, 0, True, 162, Win Selecting Low Bandit

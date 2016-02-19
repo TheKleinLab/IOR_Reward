@@ -387,8 +387,11 @@ class IOR_Reward(klibs.Experiment):
 			self.blit(self.star, 5, Params.screen_c)
 			if not Params.eye_tracker_available:
 				self.blit(cursor())
+			print "Pre-Cue flip: {0}".format(time.time())
 			self.flip()
+			print "Post-Cue flip: {0}".format(time.time())
 			self.evi.send(event)
+			print "Post-EventSent: {0}".format(time.time())
 			Params.tk.start("cpoa")
 			Params.tk.start("cboa", Params.tk.read("cpoa")[0])
 			self.confirm_fixation()
