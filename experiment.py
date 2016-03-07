@@ -33,6 +33,8 @@ HIGH = "high"
 LOW = "low"
 BLUE = [0, 0, 255, 255]
 RED = [255, 0, 0, 255]
+GREEN = [0, 255, 0, 255]
+PURPLE = [95,25,130,255]
 
 class IOR_Reward(klibs.Experiment):
 	thick_rect = None
@@ -155,12 +157,23 @@ class IOR_Reward(klibs.Experiment):
 
 
 	def block(self, block_num):
-		if self.high_value_color in [RED, None]:
-			self.high_value_color = BLUE
-			self.low_value_color = RED
-		elif self.high_value_color is BLUE:
-			self.high_value_color = RED
-			self.low_value_color = BLUE
+		if Params.practicing:
+			if self.high_value_color in [PURPLE, None]:
+				self.high_value_color = GREEN
+				self.low_value_color = PURPLE
+			elif self.high_value_color is GREEN:
+				self.high_value_color = PURPLE
+				self.low_value_color = GREEN
+		else:
+			if self.high_value_color in [PURPLE, GREEN]:
+				self.high_value_color = None
+				self.low_value_color = None
+			if self.high_value_color in [RED, None]:
+				self.high_value_color = BLUE
+				self.low_value_color = RED
+			elif self.high_value_color is BLUE:
+				self.high_value_color = RED
+				self.low_value_color = BLUE
 
 	def trial_prep(self, trial_factors):
 		self.clear()
