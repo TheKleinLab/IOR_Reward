@@ -56,7 +56,6 @@ class IOR_Reward(klibs.Experiment):
 	cpoa_key = None
 	low_penalty_msg = None
 	low_reward_msg = None
-	high_penalty_msg = None
 	high_reward_msg = None
 	bandit_timeout_msg = None
 	probe_timeout_msg = None
@@ -106,7 +105,6 @@ class IOR_Reward(klibs.Experiment):
 		self.bandit_timeout_msg = self.message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit=False)
 		self.fixation_fail_msg = self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
 		self.low_penalty_msg = self.message(bandit_text.format("lost", self.low_payout), "score down", blit=False)
-		self.high_penalty_msg = self.message(bandit_text.format("lost", self.high_payout), "score down", blit=False)
 		for i in range(self.low_bandit_payout_baseline - self.bandit_payout_variance, self.low_bandit_payout_baseline + self.bandit_payout_variance):
 			self.low_bandit_messages.append([i, self.message(bandit_text.format("won", i), "score up", blit=False)])
 		for i in range(self.high_bandit_payout_baseline - self.bandit_payout_variance, self.high_bandit_payout_baseline + self.bandit_payout_variance):
@@ -297,13 +295,9 @@ class IOR_Reward(klibs.Experiment):
 				response = RIGHT
 			else:
 				response = False
-			timeout = False
-			if response and response == winning_bandit:
-				won = True
-			elif response:
-				won = False
-			else:
-				timeout = True
+			
+			won = response == winning_bandit
+			timeout = not response
 			high_win = random.choice(self.high_bandit_messages)
 			low_win = random.choice(self.low_bandit_messages)
 			reward = self.penalty
@@ -325,7 +319,7 @@ class IOR_Reward(klibs.Experiment):
 								event = "LossHighProbeLow"
 						else:
 							event = "LossHigh"
-						message = self.high_penalty_msg
+						message = self.low_penalty_msg
 				else:
 					if won:
 						if trial_type == BOTH:
