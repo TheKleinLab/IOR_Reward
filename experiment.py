@@ -122,8 +122,8 @@ class IOR_Reward(klibs.Experiment):
 		self.rc.audio_listener.min_response_count = 1
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
-		self.rc.post_flip_callback = self.post_flip_events
-		self.rc.post_flip_args = [trial_factors[1], trial_factors[3]]
+		self.rc.after_flip_callback = self.post_flip_events
+		self.rc.after_flip_args = [trial_factors[1], trial_factors[3]]
 		if self.collecting_response_for == PROBE:
 			self.rc.audio_listener.interrupts = False
 			if trial_factors[1] == PROBE:
@@ -234,10 +234,6 @@ class IOR_Reward(klibs.Experiment):
 				else:
 					self.evi.send("SelectLowBand")
 
-		"""
-
-		"""
-
 		# get the stimuli off screen quickly whilst text renders
 		self.fill()
 		self.flip()
@@ -296,7 +292,8 @@ class IOR_Reward(klibs.Experiment):
 			else:
 				response = False
 
-			won = response == winning_bandit
+			winning_bandit_loc = LEFT if winning_bandit == "high" and high_value_loc == LEFT else RIGHT
+			won = response == winning_bandit_loc
 			timeout = not response
 			high_win = random.choice(self.high_bandit_messages)
 			low_win = random.choice(self.low_bandit_messages)
@@ -438,10 +435,10 @@ class IOR_Reward(klibs.Experiment):
 		if trial_type in (BANDIT, BOTH):
 			self.blit(self.left_bandit, 5, self.left_box_loc)
 			self.blit(self.right_bandit, 5, self.right_box_loc)
-			if self.high_value_loc == LEFT:
-				bandit_event = "HighBandLeft"
-				if BOTH and probe_loc == LEFT:
-					both_event = "ProbeLow"
+			# if self.high_value_loc == LEFT:
+			# 	# bandit_event = "HighBandLeft"
+			# 	if BOTH and probe_loc == LEFT:
+			# 		both_event = "ProbeLow"
 		else:
 			self.blit(self.neutral_box, 5, self.left_box_loc)
 			self.blit(self.neutral_box, 5, self.right_box_loc)
@@ -477,6 +474,6 @@ class IOR_Reward(klibs.Experiment):
 				self.evi.send("ProbeRight" if probe_loc == RIGHT else "ProbeLeft")
 
 		if trial_type in (BANDIT, BOTH):
-			self.evi.send("HighBandLeft" if self.high_value_loc == LEFT else "HighBandLeft")
+			self.evi.send("HighBandLeft" if self.high_value_loc == LEFT else "HighBandRight")
 
 
