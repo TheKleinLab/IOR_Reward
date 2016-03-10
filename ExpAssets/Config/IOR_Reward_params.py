@@ -37,13 +37,14 @@ cue_back_size = 1 # deg of visual angle
 # Experiment Structure
 #########################################
 collect_demographics = True
-practicing = True
+run_practice_blocks = True
 trials_per_block = 2
 trials_per_practice_block = 2
 blocks_per_experiment = 1
-practice_blocks_per_experiment = 1
+practice_blocks_per_experiment = 2
 trials_per_participant = 0
 pre_render_block_messages = False
+show_practice_messages = True
 
 #########################################
 # Development Mode Settings

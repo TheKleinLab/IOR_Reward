@@ -10,19 +10,6 @@ from klibs.KLResponseCollectors import *
 from klibs.KLKeyMap import KeyMap
 import random
 
-Params.default_fill_color = [65, 65, 65, 255]
-Params.default_color = [255,255,255,255]
-Params.dm_auto_threshold = True
-Params.collect_demographics = False
-Params.practicing = False
-Params.eye_tracking = True
-Params.eye_tracker_available = True
-
-Params.blocks_per_experiment = 1
-Params.trials_per_block = 100
-Params.practice_blocks_per_experiment = None
-Params.trials_per_practice_block = None
-
 LEFT = "left"
 RIGHT = "right"
 DOUBLE = "double"
@@ -109,7 +96,6 @@ class IOR_Reward(klibs.Experiment):
 		fix_x_2 = (Params.screen_c[0] + self.star_size_px //2) + 60
 		fix_y_2 = (Params.screen_c[1] + self.star_size_px //2) + 60
 		self.eyelink.add_gaze_boundary('fixation', [(fix_x_1, fix_y_1), (fix_x_2, fix_y_2)], EL_RECT_BOUNDARY)
-		self.text_manager.default_color = [255,255,255,255]
 		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=True)
 		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=True)
 		self.text_manager.add_style("timeout", 48, [255,255,255,255])
@@ -400,11 +386,8 @@ class IOR_Reward(klibs.Experiment):
 			self.blit(self.star, 5, Params.screen_c)
 			if not Params.eye_tracker_available:
 				self.blit(cursor())
-			print "Pre-Cue flip: {0}".format(time.time())
 			self.flip()
-			print "Post-Cue flip: {0}".format(time.time())
 			self.evi.send(event)
-			print "Post-EventSent: {0}".format(time.time())
 			Params.tk.start("cpoa")
 			Params.tk.start("cboa", Params.tk.read("cpoa")[0])
 			self.confirm_fixation()
