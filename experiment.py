@@ -124,6 +124,8 @@ class IOR_Reward(klibs.Experiment):
 		self.rc.audio_listener.min_response_count = 1
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
+		self.rc.post_flip_callback = self.post_flip_events
+		self.rc.post_flip_args = [trial_factors[1], trial_factors[3]]
 		if self.collecting_response_for == PROBE:
 			self.rc.audio_listener.interrupts = False
 			if trial_factors[1] == PROBE:
@@ -417,15 +419,15 @@ class IOR_Reward(klibs.Experiment):
 			raise TrialException("Eyes must remain at fixation")
 
 	def display_refresh(self, trial_type, probe_loc=None, flip=True):
-		bandit = False
-		if trial_type == BANDIT: 
-			bandit = True
-			bandit_event = "HighBandRight"
+		# bandit = False
+		# if trial_type == BANDIT:
+		# 	bandit = True
+		# 	bandit_event = "HighBandRight"
 
-		probed = False
-		if trial_type == PROBE: 
-			probed = True
-			probe_event = "ProbeRight"
+		# probed = False
+		# if trial_type == PROBE:
+		# 	probed = True
+		# 	probe_event = "ProbeRight"
 
 		both = False
 		if trial_type == BOTH:
@@ -437,7 +439,7 @@ class IOR_Reward(klibs.Experiment):
 			probe_loc = self.right_box_loc
 		else:
 			probe_loc = self.left_box_loc
-			probe_event = "ProbeLeft"
+			# probe_event = "ProbeLeft"
 		if trial_type in (BANDIT, BOTH):
 			self.blit(self.left_bandit, 5, self.left_box_loc)
 			self.blit(self.right_bandit, 5, self.right_box_loc)
@@ -452,23 +454,34 @@ class IOR_Reward(klibs.Experiment):
 		if self.collecting_response_for == PROBE:
 			self.blit(self.probe, 5, probe_loc)
 
-		fixmute = False
 		if self.collecting_response_for == BANDIT:
 			self.blit(self.star_muted, 5, Params.screen_c)
-			fixmute = True
 		else:
 			self.blit(self.star, 5, Params.screen_c)
+
 		if flip:
 			self.flip()
-			if fixmute:
+			if self.collecting_response_for == BANDIT:
 				self.evi.send("FixMute")
-			if probed:
-				self.evi.send(probe_event)
-			if bandit:
-				self.evi.send(bandit_event)
-			if both:
-				self.evi.send(both_event)
+			# if probed:
+			# 	self.evi.send(probe_event)
+			# if bandit:
+			# 	self.evi.send(bandit_event)
+			# if both:
+			# 	self.evi.send(both_event)
 			if self.log_cboa:
 				Params.tk.stop("cboa")
 				self.log_cboa = False
 		self.confirm_fixation()
+
+	def post_flip_events(self, trial_type, probe_loc):
+		if trial_type in (PROBE, BOTH):
+			if self.collecting_response_for == BOTH:
+				self.evi.send("ProbeHigh" if self.high_value_loc == probe_loc else "ProbeLow")
+			else:
+				self.evi.send("ProbeRight" if probe_loc == RIGHT else "ProbeLeft")
+
+		if trial_type in (BANDIT, BOTH):
+			self.evi.send("HighBandLeft" if self.high_value_loc == LEFT else "HighBandLeft")
+
+
