@@ -295,12 +295,13 @@ class IOR_Reward(klibs.Experiment):
 				response = RIGHT
 			else:
 				response = False
-			
+
 			won = response == winning_bandit
 			timeout = not response
 			high_win = random.choice(self.high_bandit_messages)
 			low_win = random.choice(self.low_bandit_messages)
 			reward = self.penalty
+			print "Won: {0}, response: {1}, winning_bandit: {2}".format(won, response, winning_bandit)
 			if not timeout:
 				if high_value_loc == response:
 					if won:
