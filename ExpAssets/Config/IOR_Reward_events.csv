@@ -62,6 +62,7 @@ DepartFix, 0, True, 180, Departed From Fixation
 Blink, 0, True, 181, Blinked
 TrialInit, 0, True, 200, Trial Initiated
 FixMute, 0, True, 201, Fixation Muted
+TrialRecycled, 0, True, 255, Trial Recycled
 
 
 

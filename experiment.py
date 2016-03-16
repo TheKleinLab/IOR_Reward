@@ -214,6 +214,7 @@ class IOR_Reward(klibs.Experiment):
 					self.blit(self.probe_timeout_msg, location=Params.screen_c, registration=5)
 					self.flip()
 					acknowledged = self.any_key()
+					self.evi.send('TrialRecycled')
 				raise TrialException("No vocal response.")
 			
 		else:
