@@ -1,5 +1,5 @@
 # IOR_Reward Config File
 trial_type.param,high_value_loc.param,probe_loc.param,cue_loc.param,winning_bandit.param,trial_count.param,
-bandit[1],left,left,left,high
+bandit[2],left,left,left,high
 probe,right,right,right,low
 both,,,double,,
