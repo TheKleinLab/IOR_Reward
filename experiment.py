@@ -226,7 +226,7 @@ class IOR_Reward(klibs.Experiment):
 			self.collecting_response_for = BANDIT
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
-			choice = self.rc.keypress_listener.responses[0][0]
+			choice = LEFT if self.rc.keypress_listener.responses[0][0] == 'z' else RIGHT
 			self.evi.send("SelectHighBand" if self.high_value_loc == choice else "SelectLowBand")
 
 		# get the stimuli off screen quickly whilst text renders
