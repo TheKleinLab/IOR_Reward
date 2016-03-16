@@ -46,7 +46,7 @@ class IOR_Reward(klibs.Experiment):
 	cotoa_max = 1000
 	pbra = 1000								# probe-bandit response asynchrony
 	bpoa = 1000								# bandit-probe onset asynchrony
-	post_selection_wait = 1000
+	post_selection_wait = 1000				#
 	feedback_exposure_period = 1000
 	high_bandit_payout_baseline = 12
 	low_bandit_payout_baseline = 5
@@ -228,10 +228,6 @@ class IOR_Reward(klibs.Experiment):
 			self.rc.collect()
 			choice = self.rc.keypress_listener.responses[0][0]
 			self.evi.send("SelectHighBand" if self.high_value_loc == choice else "SelectLowBand")
-			# if self.rc.keypress_listener.responses[0][0] == LEFT:
-			# 	self.evi.send("SelectHighBand" if self.high_value_loc == choice else "SelectLowBand")
-			# if self.rc.keypress_listener.responses[0][0] == RIGHT:
-			# 	self.evi.send("SelectHighBand" if self.high_value_loc == RIGHT else "SelectLowBand")
 
 		# get the stimuli off screen quickly whilst text renders
 		self.fill()
@@ -281,8 +277,6 @@ class IOR_Reward(klibs.Experiment):
 		pass
 
 	def feedback(self, response_key, trial_type, high_value_loc, winning_bandit):
-		# event = "WinHigh"
-
 		if trial_type == PROBE:
 			return
 		if response_key == "z":
@@ -301,7 +295,6 @@ class IOR_Reward(klibs.Experiment):
 		timeout = not response
 		high_win = random.choice(self.high_bandit_messages)
 		low_win = random.choice(self.low_bandit_messages)
-		# reward = self.penalty
 		event = "Win" if won else "Loss"
 		event += "High" if high_value_loc == response else "Low"
 		if trial_type == BOTH:
@@ -311,63 +304,25 @@ class IOR_Reward(klibs.Experiment):
 				feedback = high_win if high_value_loc == response else low_win
 			else:
 				feedback = [self.penalty, self.low_penalty_msg]
-			# if high_value_loc == response:
-			# 	if won:
-			# 		if trial_type == BOTH:
-			# 			if self.probe_loc == high_value_loc:
-			# 				event = "WinHighProbeHigh"
-			# 			else:
-			# 				event = "WinHighProbeLow"
-			# 		message = high_win[1]
-			# 		reward = high_win[0]
-			# 	else:
-			# 		if trial_type == BOTH:
-			# 			if self.probe_loc == high_value_loc:
-			# 				event = "LossHighProbeHigh"
-			# 			else:
-			# 				event = "LossHighProbeLow"
-			# 		else:
-			# 			event = "LossHigh"
-			# 		message = self.low_penalty_msg
-			# else:
-			# 	if won:
-			# 		if trial_type == BOTH:
-			# 			if self.probe_loc == high_value_loc:
-			# 				event = "WinLowProbeHigh"
-			# 			else:
-			# 				event = "WinLowProbeLow"
-			# 		else:
-			# 			event = "WinLow"
-			# 		message = low_win[1]
-			# 		reward = low_win[0]
-			# 	else:
-			# 		if trial_type == BOTH:
-			# 			if self.probe_loc == high_value_loc:
-			# 				event = "LossLowProbeHigh"
-			# 			else:
-			# 				event = "LossLowProbeLow"
-			# 		else:
-			# 			event = "LossLow"
-			# 		message = self.low_penalty_msg
 		else:
 			feedback = [None, self.bandit_timeout_msg]
-			# message = self.bandit_timeout_msg
 		if feedback[0]:
 			post_selection_wait = Params.tk.countdown(self.post_selection_wait, TK_MS)
 			while post_selection_wait.counting():
 				self.ui_request()
 				self.fill()
 				self.blit(self.star, 5, Params.screen_c)
+				self.flip()
 
-		feedback_exposure = Params.tk.countdown(self.feedback_exposure_period, TK_MS)
 		self.evi.send(event)
+		self.blit(feedback[1], location=Params.screen_c, registration=5)
+		feedback_exposure = Params.tk.countdown(self.feedback_exposure_period, TK_MS)
+		self.flip()
 		while feedback_exposure.counting():
 			self.ui_request()
 			self.fill()
 			self.blit(feedback[1], location=Params.screen_c, registration=5)
-			# self.blit(message, location=Params.screen_c, registration=5)
 			self.flip()
-		# self.any_key()
 		return feedback[0]
 
 	def prepare_bandits(self, high_value_loc):
