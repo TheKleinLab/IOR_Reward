@@ -1,6 +1,9 @@
-.idea/*
-.DS_Store
-ExpAssets/IOR_Reward.db
-ExpAssets/IOR_Reward.db.backup
-ExpAssets/Data/*
-ExpAssets/EDF/*
+**/*.pyc
+**/.*
+!.gitignore
+ExpAssets/*.db*
+ExpAssets/Data/**
+ExpAssets/EDF/**
+ExpAssets/.versions/**
+ExpAssets/Local
+ExpAssets/Local/**

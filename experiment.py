@@ -1,12 +1,15 @@
 __author__ = "Brett Feltmate"
-# works with, at least, KLIBs commit: 113282ae9cdbfb9d66e2eae7a071e546fc0d54bf
 
 import klibs
-from klibs import Params
+from klibs.KLConstants import *
+from klibs import P
 from klibs.KLExceptions import *
-from klibs.KLDraw import *
-import klibs.KLTimeKeeper as tk
-from klibs.KLResponseCollectors import *
+from klibs.KLGraphics import flip, blit, fill, clear
+from klibs.KLGraphics.KLDraw import Rectangle, Asterisk, Ellipse
+from klibs.KLUtilities import deg_to_px
+from klibs.KLUserInterface import ui_request, any_key
+from klibs.KLCommunication import message
+from klibs import env
 from klibs.KLKeyMap import KeyMap
 import random
 
@@ -78,8 +81,9 @@ class IOR_Reward(klibs.Experiment):
 
 	def __init__(self, *args, **kwargs):
 		super(IOR_Reward, self).__init__(*args, **kwargs)
-		Params.default_color = [255, 255, 255, 255]
-		self.debug.display_location = "LEFT"
+
+	def setup(self):
+		
 		self.square_size_px = deg_to_px(self.square_size)
 		self.star_size_px = deg_to_px(self.star_size)
 		self.thick_rect = Rectangle(self.square_size_px, stroke=[self.thick_rect_border, self.square_border_colour, STROKE_OUTER])
@@ -88,34 +92,32 @@ class IOR_Reward(klibs.Experiment):
 		self.star = Asterisk(self.star_size_px, self.star_color)
 		self.star_muted = Asterisk(self.star_size_px, self.muted_star_color)
 		self.star_loc = self.probe_loc
-		self.left_box_loc, self.right_box_loc = [ [Params.screen_x // 4 * a, Params.screen_c[1] ] for a in [1,3]]
-		self.probe = Circle(int(0.75 * self.square_size_px), None, self.square_border_colour).render()
-
-	def setup(self):
-		fix_x_1 = (Params.screen_c[0] - self.star_size_px //2) - 60
-		fix_y_1 = (Params.screen_c[1] - self.star_size_px //2) - 60
-		fix_x_2 = (Params.screen_c[0] + self.star_size_px //2) + 60
-		fix_y_2 = (Params.screen_c[1] + self.star_size_px //2) + 60
-		self.eyelink.add_gaze_boundary('fixation', [(fix_x_1, fix_y_1), (fix_x_2, fix_y_2)], EL_RECT_BOUNDARY)
-		self.text_manager.add_style("score up", 48, [75,210,100,255], anti_alias=True)
-		self.text_manager.add_style("score down", 48, [210,75,75,255], anti_alias=True)
-		self.text_manager.add_style("timeout", 48, [255,255,255,255])
-		self.rc.audio_listener.calibrate()
+		self.left_box_loc, self.right_box_loc = [ [P.screen_x // 4 * a, P.screen_c[1] ] for a in [1,3]]
+		self.probe = Ellipse(int(0.75 * self.square_size_px), fill=self.square_border_colour).render()
+		
+		fix_x_1 = (P.screen_c[0] - self.star_size_px //2) - 60
+		fix_y_1 = (P.screen_c[1] - self.star_size_px //2) - 60
+		fix_x_2 = (P.screen_c[0] + self.star_size_px //2) + 60
+		fix_y_2 = (P.screen_c[1] + self.star_size_px //2) + 60
+		self.el.add_boundary('fixation', [(fix_x_1, fix_y_1), (fix_x_2, fix_y_2)], RECT_BOUNDARY)
+		self.txtm.add_style("score up", 48, [75,210,100,255], anti_alias=True)
+		self.txtm.add_style("score down", 48, [210,75,75,255], anti_alias=True)
+		self.txtm.add_style("timeout", 48, [255,255,255,255])
 		probe_timeout_text = "No response detected; trial recycled. \nPlease answer louder or faster. \nPress space to continue."
 		bandit_text = "You {0} {1} points!\n Press any key to continue."
-		self.probe_timeout_msg = self.message(probe_timeout_text, 'timeout', blit=False)
-		self.bandit_timeout_msg = self.message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit=False)
-		self.fixation_fail_msg = self.message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=Params.screen_c, registration=5, blit=False)
-		self.low_penalty_msg = self.message(bandit_text.format("lost", self.low_payout), "score down", blit=False)
+		self.probe_timeout_msg = message(probe_timeout_text, 'timeout', blit_txt=False)
+		self.bandit_timeout_msg = message("Timed out; trial recycled.\n Press any key to continue.","timeout", blit_txt=False)
+		self.fixation_fail_msg = message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', location=P.screen_c, registration=5, blit_txt=False)
+		self.low_penalty_msg = message(bandit_text.format("lost", self.low_payout), "score down", blit_txt=False)
 		for i in range(self.low_bandit_payout_baseline - self.bandit_payout_variance, self.low_bandit_payout_baseline + self.bandit_payout_variance):
-			self.low_bandit_messages.append([i, self.message(bandit_text.format("won", i), "score up", blit=False)])
+			self.low_bandit_messages.append([i, message(bandit_text.format("won", i), "score up", blit_txt=False)])
 		for i in range(self.high_bandit_payout_baseline - self.bandit_payout_variance, self.high_bandit_payout_baseline + self.bandit_payout_variance):
-			self.high_bandit_messages.append([i,self.message(bandit_text.format("won", i), "score up", blit=False)])
-		self.low_reward_msg = self.message(bandit_text.format("won", self.low_payout), "score up", blit=False)
-		self.high_reward_msg = self.message(bandit_text.format("won", self.high_payout), "score up", blit=False)
+			self.high_bandit_messages.append([i,message(bandit_text.format("won", i), "score up", blit_txt=False)])
+		self.low_reward_msg = message(bandit_text.format("won", self.low_payout), "score up", blit_txt=False)
+		self.high_reward_msg = message(bandit_text.format("won", self.high_payout), "score up", blit_txt=False)
 
-	def setup_response_collector(self, trial_factors):
-		self.rc.display_args = [trial_factors[1], trial_factors[3]]
+	def setup_response_collector(self):
+		self.rc.display_args = [self.trial_type, self.probe_loc]
 		self.rc.uses([RC_AUDIO, RC_KEYPRESS])
 		self.rc.before_flip_callback = self.display_refresh
 		self.rc.display_callback = self.display_refresh
@@ -125,27 +127,27 @@ class IOR_Reward(klibs.Experiment):
 		self.rc.response_window = self.response_window
 		self.rc.keypress_listener.key_map = KeyMap('bandit_response', ['/','z'], ['/','z'], [sdl2.SDLK_SLASH, sdl2.SDLK_z])
 		self.rc.after_flip_callback = self.post_flip_events
-		self.rc.after_flip_args = [trial_factors[1], trial_factors[3]]
+		self.rc.after_flip_args = [self.trial_type, self.probe_loc]
 		if self.collecting_response_for == PROBE:
 			self.rc.audio_listener.interrupts = False
-			if trial_factors[1] == PROBE:
+			if self.trial_type == PROBE:
 				self.rc.audio_listener.interrupts = True
 			self.rc.post_flip_tk_label = "cpoa"
 			self.rc.audio_listener.interrupts = True
 			self.rc.response_window = self.pbra
 			self.rc.disable(RC_KEYPRESS)
 			self.rc.enable(RC_AUDIO)
-			self.rc.before_flip_args = [trial_factors[1], trial_factors[3], False]
+			self.rc.before_flip_args = [self.trial_type, self.probe_loc, False]
 		elif self.collecting_response_for == BANDIT:
 			self.rc.post_flip_sample_key = None
-			self.rc.display_args = [trial_factors[1], False]
+			self.rc.display_args = [self.trial_type, False]
 			self.rc.enable(RC_KEYPRESS)
 			self.rc.disable(RC_AUDIO)
-			self.rc.before_flip_args = [trial_factors[1], False, False]
+			self.rc.before_flip_args = [self.trial_type, False, False]
 
 
-	def block(self, block_num):
-		if Params.practicing:
+	def block(self):
+		if P.practicing:
 			if self.high_value_color in [PURPLE, None]:
 				self.high_value_color = GREEN
 				self.low_value_color = PURPLE
@@ -163,81 +165,82 @@ class IOR_Reward(klibs.Experiment):
 				self.high_value_color = RED
 				self.low_value_color = BLUE
 
-	def trial_prep(self, trial_factors):
-		self.clear()
+	def trial_prep(self):
+		if P.block_number == 1 and P.trial_number == 1:
+			self.rc.audio_listener.calibrate()
+		
+		clear()
 		self.collecting_response_for = None
 		# If probed trial, establish location of probe (default: left box)
-		if trial_factors[0] == PROBE or BOTH:
-			self.prepare_bandits(trial_factors[2])
-			if trial_factors[2] == RIGHT:
+		if self.trial_type in [PROBE, BOTH]:
+			self.prepare_bandits(self.high_value_location)
+			if self.high_value_location == RIGHT:
 				self.probe_loc = self.right_box_loc
-		if trial_factors[0] == BANDIT:
-			self.prepare_bandits(trial_factors[2])
-		self.eyelink.drift_correct()
-		self.probe_loc = trial_factors[3]
-		self.high_value_loc = trial_factors[2]
+		if self.trial_type == BANDIT:
+			self.prepare_bandits(self.high_value_location)
+		self.el.drift_correct()
 
-	def trial(self, trial_factors):
+	def trial(self):
 		# Trial Factors: 1) trial_type, 2) high_value_loc, 3) probe_loc, 4) cue_loc, 5) winning_bandit
-		self.eyelink.start(Params.trial_number)
+		self.el.start(P.trial_number)
 		self.present_neutral_boxes()
-		Params.tk.start('cue_onset')
-		self.present_cues(trial_factors[4])
-		self.prepare_bandits(trial_factors[2])
+		env.tk.start('cue_onset')
+		self.present_cues(self.cue_location)
+		self.prepare_bandits(self.high_value_location)
 
 		# CUEING PERIOD cotoa = cue offset, taget onset asynchrony
 		cotoa = random.choice(range(self.cotoa_min, self.cotoa_max, 1))
-		if trial_factors[1] == PROBE:
+		if self.trial_type == PROBE:
 			cotoa += self.bpoa
-		cotoa = Params.tk.countdown(cotoa, TK_MS)
+		cotoa = env.tk.countdown(cotoa, TK_MS)
 		while cotoa.counting():
 			self.present_neutral_boxes()
 
 		#  BANDIT PRIMING PERIOD
-		bandit_priming_period = Params.tk.countdown(self.bpoa, TK_MS)
-		if trial_factors[1] in [BANDIT, BOTH]:
+		bandit_priming_period = env.tk.countdown(self.bpoa, TK_MS)
+		if self.trial_type in [BANDIT, BOTH]:
 			while bandit_priming_period.counting():
 				self.log_cboa = True  # one time only per trial, display_refresh() needs to record a time post-flip
-				self.display_refresh(trial_factors[1])
+				self.display_refresh(self.trial_type)
 		#  PROBE RESPONSE PERIOD
-		if trial_factors[1] in [PROBE, BOTH]:
+		if self.trial_type in [PROBE, BOTH]:
 			self.collecting_response_for = PROBE
 			self.setup_response_collector(trial_factors)
-			print Params.tk.elapsed('cue_onset')
+			print env.tk.elapsed('cue_onset')
 			self.rc.collect()
-			if self.rc.audio_listener.responses[0][1] != TIMEOUT:
-				self.evi.send("DetectProbe")
+			#if self.rc.audio_listener.responses[0][1] != TIMEOUT:
+				#self.evm.send("DetectProbe")
 			if self.rc.audio_listener.responses[0][0] == self.rc.audio_listener.null_response:
 				acknowledged = False
 				while not acknowledged:
-					self.fill()
-					self.blit(self.probe_timeout_msg, location=Params.screen_c, registration=5)
-					self.flip()
-					acknowledged = self.any_key()
-					self.evi.send('TrialRecycled')
+					fill()
+					blit(self.probe_timeout_msg, location=P.screen_c, registration=5)
+					flip()
+					acknowledged = any_key()
+					#self.evm.send('TrialRecycled')
 				raise TrialException("No vocal response.")
 			
 		else:
-			bandit_response_delay = Params.tk.countdown(self.pbra, TK_MS)
+			bandit_response_delay = env.tk.countdown(self.pbra, TK_MS)
 			while bandit_response_delay.counting():
-				self.display_refresh(trial_factors[1])
+				self.display_refresh(self.trial_type)
 
 		#  BANDIT RESPONSE PERIOD
-		if trial_factors [1] in [BANDIT, BOTH]:
+		if self.trial_type in [BANDIT, BOTH]:
 			self.collecting_response_for = BANDIT
 			self.setup_response_collector(trial_factors)
 			self.rc.collect()
 			choice = LEFT if self.rc.keypress_listener.responses[0][0] == 'z' else RIGHT
-			self.evi.send("SelectHighBand" if self.high_value_loc == choice else "SelectLowBand")
+			#self.evm.send("SelectHighBand" if self.high_value_location == choice else "SelectLowBand")
 
 		# get the stimuli off screen quickly whilst text renders
-		self.fill()
-		self.flip()
+		fill()
+		flip()
 
 		#  FEEDBACK PERIOD
 		reward = "N/A"
-		if trial_factors[1] != PROBE:
-			reward = self.feedback(self.rc.keypress_listener.responses[0][0], trial_factors[1], trial_factors[2], trial_factors[5])
+		if self.trial_type != PROBE:
+			reward = self.feedback(self.rc.keypress_listener.responses[0][0], self.trial_type, self.high_value_location, trial_factors[5])
 		try:
 			audio_rt = self.rc.audio_listener.responses[0][1]
 			audio_timeout = self.rc.audio_listener.responses[0][1] == TIMEOUT
@@ -254,24 +257,24 @@ class IOR_Reward(klibs.Experiment):
 			keypress_response = "N/A"
 
 		return {
-		"block_num": Params.block_number,
-		"trial_num": Params.trial_number,
+		"block_num": P.block_number,
+		"trial_num": P.trial_number,
 		"audio_response_time": audio_rt,
 		"audio_timed_out": audio_timeout,
 		"keypress_response_time": keypress_rt,
 		"keypress_timed_out": keypress_timeout,
 		"keypress_response": keypress_response,
-		"trial_type": trial_factors[1],
-		"high_value_loc": trial_factors[2],
-		"winning_bandit": trial_factors[5],
+		"trial_type": self.trial_type,
+		"high_value_loc": self.high_value_location,
+		"winning_bandit": self.winning_bandit,
 		"reward": reward if reward else "N/A",
-		"probe_loc": trial_factors[3],
-		"cue_loc": trial_factors[4],
-		"cpoa": Params.tk.period('cpoa') if trial_factors[1] in [PROBE, BOTH] else "N/A",
-		"cboa": Params.tk.period('cboa') if trial_factors[1] in [BANDIT, BOTH] else "N/A"
+		"probe_loc": self.probe_loc,
+		"cue_loc": self.cue_location,
+		"cpoa": env.tk.period('cpoa') if self.trial_type in [PROBE, BOTH] else "N/A",
+		"cboa": env.tk.period('cboa') if self.trial_type in [BANDIT, BOTH] else "N/A"
 		}
 
-	def trial_clean_up(self, trial_id,  trial_factors):
+	def trial_clean_up(self):
 		pass
 
 	def clean_up(self):
@@ -308,22 +311,22 @@ class IOR_Reward(klibs.Experiment):
 		else:
 			feedback = [None, self.bandit_timeout_msg]
 		if feedback[0]:
-			post_selection_wait = Params.tk.countdown(self.post_selection_wait, TK_MS)
+			post_selection_wait = env.tk.countdown(self.post_selection_wait, TK_MS)
 			while post_selection_wait.counting():
-				self.ui_request()
-				self.fill()
-				self.blit(self.star, 5, Params.screen_c)
-				self.flip()
+				ui_request()
+				fill()
+				blit(self.star, 5, P.screen_c)
+				flip()
 
-		self.evi.send(event)
-		self.blit(feedback[1], location=Params.screen_c, registration=5)
-		feedback_exposure = Params.tk.countdown(self.feedback_exposure_period, TK_MS)
-		self.flip()
+		#self.evm.send(event)
+		blit(feedback[1], location=P.screen_c, registration=5)
+		feedback_exposure = env.tk.countdown(self.feedback_exposure_period, TK_MS)
+		flip()
 		while feedback_exposure.counting():
-			self.ui_request()
-			self.fill()
-			self.blit(feedback[1], location=Params.screen_c, registration=5)
-			self.flip()
+			ui_request()
+			fill()
+			blit(feedback[1], location=P.screen_c, registration=5)
+			flip()
 		return feedback[0]
 
 	def prepare_bandits(self, high_value_loc):
@@ -337,7 +340,7 @@ class IOR_Reward(klibs.Experiment):
 			self.right_bandit = self.thin_rect.render()
 			self.thin_rect.fill = self.low_value_color
 			self.left_bandit = self.thin_rect.render()
-		self.thin_rect.fill = Params.default_fill_color
+		self.thin_rect.fill = P.default_fill_color
 
 	def present_cues(self, cue_condition):
 		# assign graphics to cued location
@@ -345,7 +348,7 @@ class IOR_Reward(klibs.Experiment):
 		right_box = self.thick_rect if cue_condition in [RIGHT, DOUBLE] else self.thin_rect
 
 		# present cue
-		cue_presentation = Params.tk.countdown(self.cue_presentation_duration, TK_MS)
+		cue_presentation = env.tk.countdown(self.cue_presentation_duration, TK_MS)
 		event = "LeftCue"
 		if cue_condition == RIGHT:
 			event = "RightCue"
@@ -353,80 +356,77 @@ class IOR_Reward(klibs.Experiment):
 			event = "DouCue"
 
 		while cue_presentation.counting():
-			self.fill()
-			self.blit(left_box, 5, self.left_box_loc)
-			self.blit(right_box, 5, self.right_box_loc)
-			self.blit(self.star, 5, Params.screen_c)
-			if not Params.eye_tracker_available:
-				self.blit(cursor())
-			self.flip()
-			self.evi.send(event)
-			Params.tk.start("cpoa")
-			Params.tk.start("cboa", Params.tk.read("cpoa")[0])
+			fill()
+			blit(left_box, 5, self.left_box_loc)
+			blit(right_box, 5, self.right_box_loc)
+			blit(self.star, 5, P.screen_c)
+			flip()
+			#self.evm.send(event)
+			env.tk.start("cpoa")
+			env.tk.start("cboa", env.tk.read("cpoa")[0])
 			self.confirm_fixation()
 
 	def present_neutral_boxes(self, pre_trial_blit=False):
-		cue_onset = Params.tk.countdown(self.cue_onset_duration, TK_MS)
+		cue_onset = env.tk.countdown(self.cue_onset_duration, TK_MS)
 		while cue_onset.counting():
-			self.ui_request()
-			self.fill()
-			self.blit(self.star, 5, Params.screen_c)
-			self.blit(self.neutral_box, 5, self.left_box_loc)
-			self.blit(self.neutral_box, 5, self.right_box_loc)
-			if not Params.eye_tracker_available:
-				self.blit(cursor())
-			self.flip()
+			ui_request()
+			fill()
+			blit(self.star, 5, P.screen_c)
+			blit(self.neutral_box, 5, self.left_box_loc)
+			blit(self.neutral_box, 5, self.right_box_loc)
+			flip()
 			self.confirm_fixation()
 
 	def confirm_fixation(self):
-		if not self.eyelink.within_boundary('fixation'):
-			self.evi.send("DepartFix")
+		if not self.el.within_boundary('fixation', EL_GAZE_POS):
+			#self.evm.send("DepartFix")
 			acknowledged = False
 			while not acknowledged:
-				self.fill()
-				self.blit(self.fixation_fail_msg, location=Params.screen_c, registration=5)
-				self.flip()
-				acknowledged = self.any_key()
+				fill()
+				blit(self.fixation_fail_msg, location=P.screen_c, registration=5)
+				flip()
+				acknowledged = any_key()
 			raise TrialException("Eyes must remain at fixation")
 
 	def display_refresh(self, trial_type, probe_loc=None, flip=True):
-		self.fill()
+		fill()
 		if probe_loc == RIGHT:
 			probe_loc = self.right_box_loc
 		else:
 			probe_loc = self.left_box_loc
 		if trial_type in (BANDIT, BOTH):
-			self.blit(self.left_bandit, 5, self.left_box_loc)
-			self.blit(self.right_bandit, 5, self.right_box_loc)
+			blit(self.left_bandit, 5, self.left_box_loc)
+			blit(self.right_bandit, 5, self.right_box_loc)
 		else:
-			self.blit(self.neutral_box, 5, self.left_box_loc)
-			self.blit(self.neutral_box, 5, self.right_box_loc)
+			blit(self.neutral_box, 5, self.left_box_loc)
+			blit(self.neutral_box, 5, self.right_box_loc)
 
 		if self.collecting_response_for == PROBE:
-			self.blit(self.probe, 5, probe_loc)
+			blit(self.probe, 5, probe_loc)
 
 		if self.collecting_response_for == BANDIT:
-			self.blit(self.star_muted, 5, Params.screen_c)
+			blit(self.star_muted, 5, P.screen_c)
 		else:
-			self.blit(self.star, 5, Params.screen_c)
+			blit(self.star, 5, P.screen_c)
 
 		if flip:
-			self.flip()
-			if self.collecting_response_for == BANDIT:
-				self.evi.send("FixMute")
+			flip()
+			#if self.collecting_response_for == BANDIT:
+				#self.evm.send("FixMute")
 			if self.log_cboa:
-				Params.tk.stop("cboa")
+				env.tk.stop("cboa")
 				self.log_cboa = False
 		self.confirm_fixation()
 
 	def post_flip_events(self, trial_type, probe_loc):
-		if trial_type in (PROBE, BOTH):
-			if self.collecting_response_for == BOTH:
-				self.evi.send("ProbeHigh" if self.high_value_loc == probe_loc else "ProbeLow")
-			else:
-				self.evi.send("ProbeRight" if probe_loc == RIGHT else "ProbeLeft")
+		pass
+		#if trial_type in (PROBE, BOTH):
+			#if self.collecting_response_for == BOTH:
+				#self.evm.send("ProbeHigh" if self.high_value_location == probe_loc else "ProbeLow")
+			#else:
+				#self.evm.send("ProbeRight" if probe_loc == RIGHT else "ProbeLeft")
 
-		if trial_type in (BANDIT, BOTH):
-			self.evi.send("HighBandLeft" if self.high_value_loc == LEFT else "HighBandRight")
+		#if trial_type in (BANDIT, BOTH):
+			#self.evm.send("HighBandLeft" if self.high_value_location == LEFT else "HighBandRight")
 
 

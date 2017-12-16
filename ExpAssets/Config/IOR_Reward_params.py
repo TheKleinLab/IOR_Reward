@@ -36,6 +36,8 @@ cue_back_size = 1 # deg of visual angle
 #########################################
 # Experiment Structure
 #########################################
+view_distance = 57
+multi_user = False
 collect_demographics = True
 run_practice_blocks = True
 trials_per_block = 2

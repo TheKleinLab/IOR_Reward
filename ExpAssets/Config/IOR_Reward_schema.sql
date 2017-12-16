@@ -18,46 +18,46 @@ been caught much earlier.
 To do this, modify the document as needed, then, in your project. To rebuild the database with
 your changes just delete your database files, or just run:
 
-  rm /Users/Brett/IOR_Reward/ExpAssets/IOR_Reward.db*
+  klibs db-rebuild
 
 and run the experiment, this will force klibs to rebuild your database.
 
 But be warned: THIS WILL DELETE ALL YOUR CURRENT DATA. The database will be completely 
 destroyed and rebuilt. If you wish to keep the data you currently have, be sure to first run:
 
-  klibs export /Users/Brett/IOR_Reward
+  klibs export
 
-This will export the database in it's current state to text files found in /Users/Brett/Data.
+This will export the database in it's current state to text files found in ExpAssets/Data/.
 
 */
 
 CREATE TABLE participants (
-	id integer primary key autoincrement not null,
-	userhash text not null,
-	random_seed text not null,
-	sex text not null,
-	age integer not null, 
-	handedness text not null,
-  created text not null
+    id integer primary key autoincrement not null,
+    userhash text not null,
+    random_seed text not null,
+    sex text not null,
+    age integer not null, 
+    handedness text not null,
+    created text not null,
+    klibs_commit text not null
 );
 
 CREATE TABLE trials (
-	id integer primary key autoincrement not null,
-	participant_id integer key not null,
-	block_num integer not null,
-	trial_num integer not null,
-  audio_response_time text not null,
-  keypress_response_time text not null,
-  audio_timed_out text not null,
-  keypress_timed_out text not null,
-  keypress_response text not null,
-  trial_type text not null,
-  high_value_loc text not null,
-  winning_bandit text not null,
-  reward text not null,
-  probe_loc text not null,
-  cue_loc text not null,
-  cboa text not null,
-  cpoa text not null
-
+    id integer primary key autoincrement not null,
+    participant_id integer key not null,
+    block_num integer not null,
+    trial_num integer not null,
+    audio_response_time text not null,
+    keypress_response_time text not null,
+    audio_timed_out text not null,
+    keypress_timed_out text not null,
+    keypress_response text not null,
+    trial_type text not null,
+    high_value_loc text not null,
+    winning_bandit text not null,
+    reward text not null,
+    probe_loc text not null,
+    cue_loc text not null,
+    cboa text not null,
+    cpoa text not null
 );
