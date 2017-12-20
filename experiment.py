@@ -49,18 +49,11 @@ class IOR_Reward(klibs.Experiment):
 	
 	high_bandit_payout_baseline = 12
 	low_bandit_payout_baseline = 5
-	high_bandit_messages = []				# messages are pre-rendered to save time between trials
-	low_bandit_messages = []
-	bandit_payout_variance = 1
 	penalty = -5
 
 	# Runtime vars (ie. defined on a per-trial or per-block basis)
 	high_value_color = None  				# block-level var
 	low_value_color = None	 				# block-level var
-	left_bandit = None
-	right_bandit = None
-	collecting_response_for = None
-	log_cboa = None
 	low_payout = 5
 	high_payout = 10
 	prob_loc = None
@@ -74,18 +67,18 @@ class IOR_Reward(klibs.Experiment):
 		
 		# Stimulus Sizes
 		
-		thick_rect_border = 15
-		thin_rect_border = 2
+		thick_rect_border = deg_to_px(0.35)
+		thin_rect_border = deg_to_px(0.05)
 		star_size = deg_to_px(0.75)
 		star_thickness = deg_to_px(0.1)
 		square_size = deg_to_px(4)
 		
 		# Stimulus Drawbjects
 		
-		self.thick_rect = Rectangle(square_size, stroke=[thick_rect_border, WHITE, STROKE_OUTER])
-		self.thin_rect = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_OUTER])
-		self.left_bandit = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_OUTER])
-		self.right_bandit = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_OUTER])
+		self.thick_rect = Rectangle(square_size, stroke=[thick_rect_border, WHITE, STROKE_CENTER])
+		self.thin_rect = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_CENTER])
+		self.left_bandit = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_CENTER])
+		self.right_bandit = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_CENTER])
 		self.neutral_box = self.thin_rect.render()
 		self.star = Asterisk(star_size, WHITE, stroke=star_thickness)
 		self.star_muted = Asterisk(star_size, GREY, stroke=star_thickness)
@@ -128,16 +121,30 @@ class IOR_Reward(klibs.Experiment):
 			"Press space to continue."
 		)
 		bandit_text = "You {0} {1} points!"#"\nPress any key to continue."
+		
+		self.fixation_fail_msg = message("Eyes moved. Please keep your eyes on the asterisk.", 
+			'timeout', blit_txt=False)
 		self.probe_timeout_msg = message(probe_timeout_text, 'timeout', align='center', blit_txt=False)
-		self.bandit_timeout_msg = message("Timed out; trial recycled.\nPress any key to continue.", 'timeout', align='center', blit_txt=False)
-		self.fixation_fail_msg = message("Eyes moved. Please keep your eyes on the asterisk.", 'timeout', blit_txt=False)
-		self.low_penalty_msg = message(bandit_text.format("lost", self.low_payout), "score down", align='center', blit_txt=False)
-		for i in range(self.low_bandit_payout_baseline - self.bandit_payout_variance, self.low_bandit_payout_baseline + self.bandit_payout_variance):
-			self.low_bandit_messages.append([i, message(bandit_text.format("won", i), "score up", align='center', blit_txt=False)])
-		for i in range(self.high_bandit_payout_baseline - self.bandit_payout_variance, self.high_bandit_payout_baseline + self.bandit_payout_variance):
-			self.high_bandit_messages.append([i,message(bandit_text.format("won", i), "score up", align='center', blit_txt=False)])
-		self.low_reward_msg = message(bandit_text.format("won", self.low_payout), "score up", align='center', blit_txt=False)
-		self.high_reward_msg = message(bandit_text.format("won", self.high_payout), "score up", align='center', blit_txt=False)
+		self.bandit_timeout_msg = message("Timed out; trial recycled.\nPress any key to continue.",
+			'timeout', align='center', blit_txt=False)
+			
+		self.low_penalty_msg = message(bandit_text.format("lost", self.low_payout), "score down",
+			align='center', blit_txt=False)
+		self.low_reward_msg = message(bandit_text.format("won", self.low_payout), "score up", 
+			align='center', blit_txt=False)
+		self.high_reward_msg = message(bandit_text.format("won", self.high_payout), "score up", 
+			align='center', blit_txt=False)
+			
+		low_bandit_messages = []
+		for i in range(self.low_bandit_payout_baseline - 1, self.low_bandit_payout_baseline + 1):
+			self.low_bandit_messages.append(
+				[i, message(bandit_text.format("won", i), "score up", align='center', blit_txt=False)]
+			)
+		high_bandit_messages = []
+		for i in range(self.high_bandit_payout_baseline - 1, self.high_bandit_payout_baseline + 1):
+			self.high_bandit_messages.append(
+				[i, message(bandit_text.format("won", i), "score up", align='center', blit_txt=False)]
+			)
 		
 		# Initialize separate ResponseCollectors for probe and bandit responses
 		
@@ -180,20 +187,19 @@ class IOR_Reward(klibs.Experiment):
 
 	def setup_response_collector(self):
 		
-		#self.probe_rc.uses(RC_AUDIO)
+		# Configure probe response collector
 		self.probe_rc.terminate_after = [2000, TK_MS]
 		self.probe_rc.display_callback = self.probe_callback
-		self.probe_rc.display_kwargs = {'mixed': self.trial_type == BOTH}
+		self.probe_rc.display_args = [self.trial_type == BOTH]
+		#self.probe_rc.display_kwargs = {'mixed': self.trial_type == BOTH}
 		self.probe_rc.flip = True
-		#self.probe_rc.audio_listener.min_response_count = 1
 		self.probe_rc.audio_listener.interrupts = True
-			
-		#self.bandit_rc.uses(RC_KEYPRESS)
+		
+		# Configure bandit response collector
 		self.bandit_rc.terminate_after = [2000, TK_MS]
 		self.bandit_rc.display_callback = self.bandit_callback
 		self.bandit_rc.flip = True
 		self.bandit_rc.keypress_listener.key_map = self.keymap
-		#self.bandit_rc.keypress_listener.min_response_count = 1
 		self.bandit_rc.keypress_listener.interrupts = True
 
 
@@ -201,7 +207,6 @@ class IOR_Reward(klibs.Experiment):
 
 		# If probed trial, establish location of probe (default: left box)
 		self.probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
-			
 			
 		if self.high_value_loc == LEFT:
 			self.left_bandit.fill = self.high_value_color
@@ -246,19 +251,14 @@ class IOR_Reward(klibs.Experiment):
 			flip()
 
 		if self.trial_type in [BANDIT, BOTH]:
-			self.log_cboa = True # what is this?
-			#print("getting this far...")
 			while self.evm.before('nogo_end', True):
 				self.confirm_fixation()
 				self.bandit_callback(before_go=True)
 				flip()
-		#print("getting this far?")
+
 		#  PROBE RESPONSE PERIOD
 		if self.trial_type in [PROBE, BOTH]:
-			#print env.tk.elapsed('cue_onset')
 			self.probe_rc.collect()
-			#if self.rc.audio_listener.responses[0][1] != TIMEOUT:
-				#self.evm.send("DetectProbe")
 			if self.probe_rc.audio_listener.responses[0][0] == self.probe_rc.audio_listener.null_response:
 				fill()
 				blit(self.probe_timeout_msg, location=P.screen_c, registration=5)
@@ -268,14 +268,8 @@ class IOR_Reward(klibs.Experiment):
 
 		#  BANDIT RESPONSE PERIOD
 		if self.trial_type in [BANDIT, BOTH]:
-			#print("does it manage to make it this far?")
 			self.bandit_rc.collect()
 			choice = self.bandit_rc.keypress_listener.responses[0][0]
-			#self.evm.send("SelectHighBand" if self.high_value_location == choice else "SelectLowBand")
-
-		# get the stimuli off screen quickly whilst text renders
-		fill()
-		flip()
 
 		#  FEEDBACK PERIOD
 		reward = "NA"
@@ -332,10 +326,7 @@ class IOR_Reward(klibs.Experiment):
 		timeout = not response
 		high_win = random.choice(self.high_bandit_messages)
 		low_win = random.choice(self.low_bandit_messages)
-		#event = "Win" if won else "Loss"
-		#event += "High" if high_value_loc == response else "Low"
-		#if trial_type == BOTH:
-		#	event += "ProbeHigh" if self.probe_loc == high_value_loc else "ProbeLow"
+
 		if timeout:
 			feedback = [None, self.bandit_timeout_msg]
 		else:
@@ -350,7 +341,6 @@ class IOR_Reward(klibs.Experiment):
 				blit(self.star, 5, P.screen_c)
 				flip()
 
-		#self.evm.send(event)
 		feedback_exposure = env.tk.countdown(self.feedback_exposure_period, unit=TK_MS)
 		while feedback_exposure.counting():
 			ui_request()
@@ -363,7 +353,6 @@ class IOR_Reward(klibs.Experiment):
 
 	def confirm_fixation(self):
 		if not self.el.within_boundary('fixation', EL_GAZE_POS):
-			#self.evm.send("DepartFix")
 			fill()
 			blit(self.fixation_fail_msg, location=P.screen_c, registration=5)
 			flip()
@@ -392,49 +381,4 @@ class IOR_Reward(klibs.Experiment):
 			
 		probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
 		blit(self.probe, 5, probe_loc)
-		
-		
-	
-
-	#def display_refresh(self, trial_type, probe_loc=None, flip_screen=True):
-	#	fill()
-	#	if probe_loc == RIGHT:
-	#		probe_loc = self.right_box_loc
-	#	else:
-	#		probe_loc = self.left_box_loc
-	#	if trial_type in (BANDIT, BOTH):
-	#		blit(self.left_bandit, 5, self.left_box_loc)
-	#		blit(self.right_bandit, 5, self.right_box_loc)
-	#	else:
-	#		blit(self.neutral_box, 5, self.left_box_loc)
-	#		blit(self.neutral_box, 5, self.right_box_loc)
-    #
-	#	if self.collecting_response_for == PROBE:
-	#		blit(self.probe, 5, probe_loc)
-    #
-	#	if self.collecting_response_for == BANDIT:
-	#		blit(self.star_muted, 5, P.screen_c)
-	#	else:
-	#		blit(self.star, 5, P.screen_c)
-    #
-	#	if flip_screen:
-	#		flip()
-	#		#if self.collecting_response_for == BANDIT:
-	#			#self.evm.send("FixMute")
-	#		if self.log_cboa:
-	#			env.tk.stop("cboa")
-	#			self.log_cboa = False
-	#	self.confirm_fixation()
-
-	#def post_flip_events(self, trial_type, probe_loc):
-	#	pass
-	#	if trial_type in (PROBE, BOTH):
-	#		if self.collecting_response_for == BOTH:
-	#			self.evm.send("ProbeHigh" if self.high_value_location == probe_loc else "ProbeLow")
-	#		else:
-	#			self.evm.send("ProbeRight" if probe_loc == RIGHT else "ProbeLeft")
-    #
-	#	if trial_type in (BANDIT, BOTH):
-	#		self.evm.send("HighBandLeft" if self.high_value_location == LEFT else "HighBandRight")
-
 

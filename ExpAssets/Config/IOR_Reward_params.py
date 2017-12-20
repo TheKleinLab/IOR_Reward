@@ -52,4 +52,4 @@ show_practice_messages = True
 # Development Mode Settings
 #########################################
 dm_suppress_debug_pane = False
-dm_auto_threshold = True
+dm_auto_threshold = False
