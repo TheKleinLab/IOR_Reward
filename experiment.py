@@ -67,8 +67,8 @@ class IOR_Reward(klibs.Experiment):
 		
 		# Stimulus Sizes
 		
-		thick_rect_border = deg_to_px(0.35)
-		thin_rect_border = deg_to_px(0.05)
+		thick_rect_border = deg_to_px(0.5)
+		thin_rect_border = deg_to_px(0.1)
 		star_size = deg_to_px(0.75)
 		star_thickness = deg_to_px(0.1)
 		square_size = deg_to_px(4)
@@ -135,12 +135,12 @@ class IOR_Reward(klibs.Experiment):
 		self.high_reward_msg = message(bandit_text.format("won", self.high_payout), "score up", 
 			align='center', blit_txt=False)
 			
-		low_bandit_messages = []
+		self.low_bandit_messages = []
 		for i in range(self.low_bandit_payout_baseline - 1, self.low_bandit_payout_baseline + 1):
 			self.low_bandit_messages.append(
 				[i, message(bandit_text.format("won", i), "score up", align='center', blit_txt=False)]
 			)
-		high_bandit_messages = []
+		self.high_bandit_messages = []
 		for i in range(self.high_bandit_payout_baseline - 1, self.high_bandit_payout_baseline + 1):
 			self.high_bandit_messages.append(
 				[i, message(bandit_text.format("won", i), "score up", align='center', blit_txt=False)]
@@ -234,7 +234,7 @@ class IOR_Reward(klibs.Experiment):
 	def trial(self):
 		
 		if P.development_mode:
-			trial_info = "trial_type: {0} high_val_loc: {1} probe_loc: {2} cue_loc: {3} winning_bandit: {4}"
+			trial_info = "trial_type: '{0}', high_val_loc: '{1}', probe_loc: '{2}', cue_loc: '{3}', winning_bandit: '{4}'\n"
 			print(trial_info.format(self.trial_type, self.high_value_location, self.probe_location, self.cue_location, self.winning_bandit))
 		
 		while self.evm.before('target_on', True):
