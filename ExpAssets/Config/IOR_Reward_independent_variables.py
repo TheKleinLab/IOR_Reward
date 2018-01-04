@@ -5,7 +5,6 @@ IOR_Reward_ind_vars = IndependentVariableSet()
 
 IOR_Reward_ind_vars.add_variable("trial_type", str)
 IOR_Reward_ind_vars["trial_type"].add_values(("bandit", 2), "probe", "both")
-
 IOR_Reward_ind_vars.add_variable("high_value_location", str)
 IOR_Reward_ind_vars["high_value_location"].add_values("left", "right")
 

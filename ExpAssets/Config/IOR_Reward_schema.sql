@@ -47,17 +47,16 @@ CREATE TABLE trials (
     participant_id integer key not null,
     block_num integer not null,
     trial_num integer not null,
-    audio_response_time text not null,
-    keypress_response_time text not null,
-    audio_timed_out text not null,
-    keypress_timed_out text not null,
-    keypress_response text not null,
-    trial_type text not null,
+	trial_type text not null,
+	cue_loc text not null,
+	cotoa float not null,
+	/* bandit columns */
     high_value_loc text not null,
     winning_bandit text not null,
-    reward text not null,
+    bandit_choice text not null,
+    bandit_rt text not null,
+	reward text not null,
+	/* probe columns */
     probe_loc text not null,
-    cue_loc text not null,
-    cboa text not null,
-    cpoa text not null
+	probe_rt text not null
 );
