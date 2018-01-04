@@ -3,10 +3,10 @@
 #########################################
 # Available Hardware
 #########################################
-eye_tracker_available = False
+eye_tracker_available = True
 eye_tracking = True
 labjack_available = False
-labjacking = True
+labjacking = False
 
 #########################################
 # Environment Aesthetic Defaults
