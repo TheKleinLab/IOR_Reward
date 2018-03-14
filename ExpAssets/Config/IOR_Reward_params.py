@@ -47,5 +47,10 @@ dm_show_gaze_dot = True
 #########################################
 primary_table = "trials"
 unique_identifier = "userhash"
-default_participant_fields = [[unique_identifier, "participant"], "sex", "age", "handedness"]
-default_participant_fields_sf = [[unique_identifier, "participant"], "random_seed", "sex", "age", "handedness"]
+default_participant_fields = [[unique_identifier, "participant"], "gender", "age", "handedness"]
+default_participant_fields_sf = [[unique_identifier, "participant"], "random_seed", "gender", "age", "handedness"]
+
+#########################################
+# Project-specific params
+#########################################
+ignore_vocal_for_bandits = True # with more sensitive mics, key presses pass audio threshold

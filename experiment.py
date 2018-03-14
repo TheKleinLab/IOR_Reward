@@ -7,15 +7,16 @@ import klibs
 from klibs.KLConstants import *
 from klibs.KLExceptions import TrialException
 from klibs import P
-from klibs.KLGraphics import flip, blit, fill, clear
-from klibs.KLGraphics.KLDraw import Rectangle, Asterisk, Ellipse
 from klibs.KLUtilities import deg_to_px
 from klibs.KLKeyMap import KeyMap
-from klibs.KLUserInterface import ui_request, any_key
+from klibs.KLTime import CountDown
+from klibs.KLUserInterface import ui_request, any_key, key_pressed
+from klibs.KLGraphics import flip, blit, fill, clear
+from klibs.KLGraphics.colorspaces import const_lum
+from klibs.KLGraphics.KLDraw import Rectangle, Asterisk, Ellipse
 from klibs.KLCommunication import message
 from klibs.KLResponseCollectors import ResponseCollector
 from klibs.KLEventInterface import TrialEventTicket as ET
-from klibs import env
 
 # Import additional required libraries
 
@@ -47,6 +48,8 @@ PASTEL_RED = [210, 75, 75, 255]
 
 
 class IOR_Reward(klibs.Experiment):
+
+	#TODO: Add checking for audio responses on bandit trials (keyboard might make this difficult?)
 	
 	
 	def __init__(self, *args, **kwargs):
@@ -59,11 +62,8 @@ class IOR_Reward(klibs.Experiment):
 		
 		self.high_payout_baseline = 12
 		self.low_payout_baseline = 8
-		self.penalty = -5
-		# default high/low value bandit colors (changed every block)
-		self.high_value_color = BLUE
-		self.low_value_color = RED
 		self.total_score = None
+		self.penalty = -5
 		
 		# Stimulus Sizes
 		
@@ -73,6 +73,14 @@ class IOR_Reward(klibs.Experiment):
 		star_thickness = deg_to_px(0.1)
 		square_size = deg_to_px(4)
 		
+		# Generate bandit colours from colour wheel
+		
+		self.bandit_colour_combos = []
+		for angle in [0, 45, 90, 135]:
+			combo = [const_lum[angle], const_lum[angle+180]]
+			self.bandit_colour_combos.append(combo)
+		random.shuffle(self.bandit_colour_combos)
+		
 		# Stimulus Drawbjects
 		
 		self.thick_rect = Rectangle(square_size, stroke=[thick_rect_border, WHITE, STROKE_CENTER])
@@ -80,8 +88,9 @@ class IOR_Reward(klibs.Experiment):
 		self.left_bandit = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_CENTER])
 		self.right_bandit = Rectangle(square_size, stroke=[thin_rect_border, WHITE, STROKE_CENTER])
 		self.neutral_box = self.thin_rect.render()
-		self.star = Asterisk(star_size, WHITE, stroke=star_thickness)
-		self.star_muted = Asterisk(star_size, GREY, stroke=star_thickness)
+		self.star = Asterisk(star_size, star_thickness, fill=WHITE)
+		self.star_cueback = Asterisk(star_size*2, star_thickness*2, fill=WHITE)
+		self.star_muted = Asterisk(star_size, star_thickness, fill=GREY)
 		self.probe = Ellipse(int(0.75 * square_size), fill=WHITE).render()
 		
 		# Layout
@@ -91,18 +100,16 @@ class IOR_Reward(klibs.Experiment):
 		
 		# Timing
 		
-		self.cotoa_min = 700
-		self.cotoa_max = 1000
-		self.post_selection_wait = 1000
-		self.feedback_exposure_period = 1000
+		# Note: cotoa = cue-offset target-onset asynchrony
+		self.cotoa_min = 700 # ms
+		self.cotoa_max = 1000 # ms
+		self.post_selection_wait = 1 # sec
+		self.feedback_exposure_period = 1 # sec
 		
 		# EyeLink Boundaries
-		bounds_offset = star_size//2 + 60
-		fix_bounds = [
-			(P.screen_c[0] - bounds_offset, P.screen_c[1] - bounds_offset),
-			(P.screen_c[0] + bounds_offset, P.screen_c[1] + bounds_offset)
-		]
-		self.el.add_boundary('fixation', fix_bounds, RECT_BOUNDARY)
+		
+		fix_bounds = [P.screen_c, star_size*1.5]
+		self.el.add_boundary('fixation', fix_bounds, CIRCLE_BOUNDARY)
 		
 		# Experiment Messages
 		
@@ -110,22 +117,27 @@ class IOR_Reward(klibs.Experiment):
 		self.txtm.add_style("score down", 34, PASTEL_RED)
 		self.txtm.add_style("timeout", 34, WHITE)
 		
-		probe_timeout_text = (
-			"No response detected; trial recycled.\n"
-			"Please answer louder or faster.\n"
-			"Press space to continue."
-		)
+		err_txt = "{0}\n\nPress any key to continue."
+		lost_fixation_txt = err_txt.format("Eyes moved! Please keep your eyes on the asterisk.")
+		too_soon_txt = err_txt.format("Responded too soon! Please wait until the 'go' signal to "
+			"make a response.")
+		probe_timeout_txt = err_txt.format("No response detected! Please answer louder or faster.")
+		bandit_timeout_txt = err_txt.format("Bandit selection timed out!")
+		wrong_response_txt = err_txt.format("Wrong response type!\nPlease make vocal responses "
+			"to probes and keypress responses to bandits.")
 		
-		self.fixation_fail_msg = message("Eyes moved. Please keep your eyes on the asterisk.", 
-			'timeout', blit_txt=False)
-		self.probe_timeout_msg = message(probe_timeout_text, 'timeout', align='center', blit_txt=False)
-		self.bandit_timeout_msg = message("Timed out!\nPress any key to continue.",
-			'timeout', align='center', blit_txt=False)
+		self.err_msgs = {
+			'fixation': message(lost_fixation_txt, align='center', blit_txt=False),
+			'too_soon': message(too_soon_txt, align='center', blit_txt=False),
+			'probe_timeout': message(probe_timeout_txt, 'timeout', align='center', blit_txt=False),
+			'bandit_timeout': message(bandit_timeout_txt, 'timeout', align='center', blit_txt=False),
+			'wrong_response': message(wrong_response_txt, align='center', blit_txt=False)
+		}
 		
 		# Initialize separate ResponseCollectors for probe and bandit responses
 		
-		self.probe_rc = ResponseCollector(uses=RC_AUDIO)
-		self.bandit_rc = ResponseCollector(uses=RC_KEYPRESS)
+		self.probe_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
+		self.bandit_rc = ResponseCollector(uses=[RC_AUDIO, RC_KEYPRESS])
 		
 		# Initialize ResponseCollector keymap
 		
@@ -137,38 +149,39 @@ class IOR_Reward(klibs.Experiment):
 		)
 		
 		# Add practice block of 20 trials to start of experiment
+		
 		if P.run_practice_blocks:
 			self.insert_practice_block(1, trial_counts=20)
 		
-		# If first block, calibrate audio response threshold for probe responses
-		self.probe_rc.audio_listener.calibrate()
+		# Calibrate mic with user input in order to set threshold for vocal responses
+		
+		threshold = self.audio.calibrate()
+		self.probe_rc.audio_listener.threshold = threshold
+		self.bandit_rc.audio_listener.threshold = threshold
 
 
 	def block(self):
 		
-		#if self.total_score:
-		#	fill()
-		#	msg = message("Total block score: {0} points!".format(self.total_score), 'timeout', blit_txt=False)
-		#	blit(msg, 5, P.screen_c)
-		#	flip()
-		#	any_key()
 		if self.total_score:
-			print("Total score for block: {0} points!\n".format(self.total_score))
+			fill()
+			score_txt = "Total block score: {0} points!".format(self.total_score)
+			msg = message(score_txt, 'timeout', blit_txt=False)
+			blit(msg, 5, P.screen_c)
+			flip()
+			any_key()
 		self.total_score = 0 # reset total bandit score each block 
 		
 		# If practicing, use different colours than during experimental blocks
 		if P.practicing:
-			practice_colors = random.sample([PURPLE, GREEN], 2)
-			self.high_value_color = practice_colors[0]
-			self.low_value_color = practice_colors[1]
+			practice_colours = random.sample([BLUE, RED], 2)
+			self.high_value_color = practice_colours[0]
+			self.low_value_color = practice_colours[1]
 		else:
-			# Alternate high value colour between blocks
-			if self.high_value_color is BLUE:
-				self.high_value_color = RED
-				self.low_value_color = BLUE
-			else:
-				self.high_value_color = BLUE
-				self.low_value_color = RED
+			# Change bandit colours between blocks
+			bandit_colours = self.bandit_colour_combos.pop()
+			random.shuffle(bandit_colours)
+			self.high_value_color = bandit_colours[0]
+			self.low_value_color = bandit_colours[1]
 		
 
 	def setup_response_collector(self):
@@ -178,6 +191,8 @@ class IOR_Reward(klibs.Experiment):
 		self.probe_rc.display_callback = self.probe_callback
 		self.probe_rc.display_args = [self.trial_type == BOTH]
 		self.probe_rc.flip = True
+		self.probe_rc.keypress_listener.key_map = self.keymap
+		self.probe_rc.keypress_listener.interrupts = True
 		self.probe_rc.audio_listener.interrupts = True
 		
 		# Configure bandit response collector
@@ -186,9 +201,17 @@ class IOR_Reward(klibs.Experiment):
 		self.bandit_rc.flip = True
 		self.bandit_rc.keypress_listener.key_map = self.keymap
 		self.bandit_rc.keypress_listener.interrupts = True
+		if self.trial_type == BOTH or P.ignore_vocal_for_bandits:
+			self.bandit_rc.audio_listener.interrupts = False
+		else:
+			self.bandit_rc.audio_listener.interrupts = True
 
 
 	def trial_prep(self):
+		
+		# Reset error flag
+		self.targets_shown = False
+		self.err = None
 
 		# If probed trial, establish location of probe (default: left box)
 		self.probe_loc = self.right_box_loc if self.probe_location == RIGHT else self.left_box_loc
@@ -209,23 +232,27 @@ class IOR_Reward(klibs.Experiment):
 		
 		# Add timecourse of events to EventManager
 		events = [[1000, 'cue_on']]
-		events.append([events[-1][0] + 350, 'cue_off'])
-		events.append([events[-1][0] + self.cotoa, 'target_on']) # either probe or bandits
+		events.append([events[-1][0] + 200, 'cue_off'])
+		events.append([events[-1][0] + 200, 'cueback_off'])
+		events.append([events[-2][0] + self.cotoa, 'target_on']) # either probe or bandits
 		if self.trial_type in [BANDIT, BOTH]:
-			events.append([events[-1][0] + 1000, 'nogo_end'])
+			events.append([events[-1][0] + 500, 'nogo_end']) # should reduce to 500 or less
 		for e in events:
 			self.evm.register_ticket(ET(e[1], e[0]))
-			
+		
+		# Perform drift correct on EyeLink before trial start
 		self.el.drift_correct()
 
 
 	def trial(self):
 		
 		if P.development_mode:
-			trial_info = "trial_type: '{0}', high_val_loc: '{1}', probe_loc: '{2}', cue_loc: '{3}', winning_bandit: '{4}'\n"
-			print(trial_info.format(self.trial_type, self.high_value_location, self.probe_location, self.cue_location, self.winning_bandit))
+			trial_info = ("\ntrial_type: '{0}', high_val_loc: '{1}', probe_loc: '{2}', "
+				"cue_loc: '{3}', winning_bandit: '{4}'")
+			print(trial_info.format(self.trial_type, self.high_value_location, self.probe_location,
+				self.cue_location, self.winning_bandit))
 		
-		while self.evm.before('target_on', True):
+		while self.evm.before('target_on', True) and not self.err:
 			
 			self.confirm_fixation()
 			self.present_neutral_boxes()
@@ -235,44 +262,64 @@ class IOR_Reward(klibs.Experiment):
 					blit(self.thick_rect, 5, self.left_box_loc)
 				if self.cue_location in [RIGHT, DOUBLE]:
 					blit(self.thick_rect, 5, self.right_box_loc)
+			elif self.evm.between('cue_off', 'cueback_off'):
+				blit(self.star_cueback, 5, P.screen_c)
 					
 			flip()
-
-		if self.trial_type in [BANDIT, BOTH]:
-			while self.evm.before('nogo_end', True):
+		
+		self.targets_shown = True # after bandits or probe shown, don't recycle trial on user error
+		if self.trial_type in [BANDIT, BOTH] and not self.err:
+			while self.evm.before('nogo_end'):
+				if key_pressed():
+					self.show_error_message('too_soon')
+					self.err = "early_response"
+					break
 				self.confirm_fixation()
 				self.bandit_callback(before_go=True)
 				flip()
 
 		#  PROBE RESPONSE PERIOD
-		if self.trial_type in [PROBE, BOTH]:
+		if self.trial_type in [PROBE, BOTH] and not self.err:
 			self.probe_rc.collect()
-			if self.probe_rc.audio_listener.responses[0][0] == self.probe_rc.audio_listener.null_response:
-				fill()
-				blit(self.probe_timeout_msg, location=P.screen_c, registration=5)
-				flip()
-				any_key()
-				raise TrialException("No vocal response.")
+			if len(self.probe_rc.keypress_listener.responses):
+				self.show_error_message('wrong_response')
+				self.err = 'keypress_on_probe'
+			elif self.probe_rc.audio_listener.responses[0][1] == TIMEOUT:
+				self.show_error_message('probe_timeout')
 
 		#  BANDIT RESPONSE PERIOD
-		if self.trial_type in [BANDIT, BOTH]:
+		if self.trial_type in [BANDIT, BOTH] and not self.err:
 			self.bandit_rc.collect()
+			if self.trial_type == BANDIT and P.ignore_vocal_for_bandits == False:
+				if len(self.probe_rc.audio_listener.responses):
+					self.show_error_message('wrong_response')
+					self.err = 'vocal_on_bandit'
 		
-		# Retreive responses from RepsponseCollector(s) and record data
-		if self.trial_type in [BANDIT, BOTH]:
-			bandit_choice = self.bandit_rc.keypress_listener.responses[0][0]
-			bandit_rt = self.bandit_rc.keypress_listener.responses[0][1]
-			bandit_timeout = bandit_rt == TIMEOUT
-			# determine bandit payout (reward) and display feedback to participant
-			reward = self.feedback(bandit_choice)
-		else:
+		if self.err:
 			bandit_choice, bandit_rt, bandit_timeout, reward = ['NA', 'NA', 'NA', 'NA']
-			
-		if self.trial_type in [PROBE, BOTH]:
-			probe_rt = self.probe_rc.audio_listener.responses[0][1]
-			probe_timeout = probe_rt == TIMEOUT
-		else:
 			probe_rt, probe_timeout = ['NA', 'NA']
+		else:
+			self.err = 'NA'
+			# Retreive responses from RepsponseCollector(s) and record data
+			if self.trial_type in [BANDIT, BOTH]:
+				bandit_choice = self.bandit_rc.keypress_listener.responses[0][0]
+				bandit_rt = self.bandit_rc.keypress_listener.responses[0][1]
+				bandit_timeout = bandit_rt == TIMEOUT
+				if bandit_timeout:
+					self.show_error_message('bandit_timeout')
+					reward = 'NA'
+				else:
+					# determine bandit payout (reward) and display feedback to participant
+					reward = self.feedback(bandit_choice)
+			else:
+				bandit_choice, bandit_rt, bandit_timeout, reward = ['NA', 'NA', 'NA', 'NA']
+				
+			if self.trial_type in [PROBE, BOTH]:
+				probe_rt = self.probe_rc.audio_listener.responses[0][1]
+				probe_timeout = probe_rt == TIMEOUT
+			else:
+				probe_rt, probe_timeout = ['NA', 'NA']
+				
 
 		return {
 			"block_num": P.block_number,
@@ -286,12 +333,15 @@ class IOR_Reward(klibs.Experiment):
 			"bandit_rt": bandit_rt,
 			"reward": reward,
 			"probe_loc": self.probe_location if self.trial_type != BANDIT else "NA",
-			"probe_rt": probe_rt
+			"probe_rt": probe_rt,
+			"err": self.err
 		}
 
 
 	def trial_clean_up(self):
 		self.probe_rc.audio_listener.reset()
+		self.probe_rc.keypress_listener.reset()
+		self.bandit_rc.audio_listener.reset()
 		self.bandit_rc.keypress_listener.reset()
 		
 		
@@ -300,32 +350,28 @@ class IOR_Reward(klibs.Experiment):
 
 
 	def feedback(self, response):
-
 		if self.winning_bandit == HIGH:
 			winning_bandit_loc = self.high_value_location
 		else:
 			winning_bandit_loc = self.low_value_location
 
-		if response == "NO_RESPONSE":
-			feedback = ["NA", self.bandit_timeout_msg]
+		if response == winning_bandit_loc:
+			points = self.bandit_payout(value=self.winning_bandit)
+			msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
 		else:
-			if response == winning_bandit_loc:
-				points = self.bandit_payout(value=self.winning_bandit)
-				msg = message("You won {0} points!".format(points), "score up", blit_txt=False)
-			else:
-				points = self.penalty # -5
-				msg = message("You lost 5 points!", "score down", blit_txt=False)
-			self.total_score += points
-			feedback = [points, msg]
-				
-			post_selection_wait = env.tk.countdown(self.post_selection_wait, unit=TK_MS)
-			while post_selection_wait.counting():
-				ui_request()
-				fill()
-				blit(self.star, 5, P.screen_c)
-				flip()
+			points = self.penalty # -5
+			msg = message("You lost 5 points!", "score down", blit_txt=False)
+		self.total_score += points
+		feedback = [points, msg]
+			
+		post_selection_wait = CountDown(self.post_selection_wait)
+		while post_selection_wait.counting():
+			ui_request()
+			fill()
+			blit(self.star, 5, P.screen_c)
+			flip()
 
-		feedback_exposure = env.tk.countdown(self.feedback_exposure_period, unit=TK_MS)
+		feedback_exposure = CountDown(self.feedback_exposure_period)
 		while feedback_exposure.counting():
 			ui_request()
 			fill()
@@ -334,6 +380,7 @@ class IOR_Reward(klibs.Experiment):
 			
 		return feedback[0]
 	
+	
 	def bandit_payout(self, value):
 		mean = self.high_payout_baseline if value == HIGH else self.low_payout_baseline
 		# sample from normal distribution with sd of 1 and round to nearest int
@@ -341,11 +388,18 @@ class IOR_Reward(klibs.Experiment):
 
 	def confirm_fixation(self):
 		if not self.el.within_boundary('fixation', EL_GAZE_POS):
-			fill()
-			blit(self.fixation_fail_msg, location=P.screen_c, registration=5)
-			flip()
-			any_key()
-			raise TrialException("Eyes must remain at fixation")
+			self.show_error_message('fixation')
+			if self.targets_shown:
+				self.err = 'left_fixation'
+			else:
+				raise TrialException('gaze left fixation') # recycle trial
+	
+	def show_error_message(self, msg_key):
+		fill()
+		blit(self.err_msgs[msg_key], location=P.screen_c, registration=5)
+		flip()
+		any_key()
+
 			
 	def random_interval(self, lower, upper):
 		# utility function to generate random time intervals with a given range
