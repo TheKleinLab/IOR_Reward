@@ -2,7 +2,7 @@
 
 IOR_Reward is an experiment program for a study looking at the effects of how the phenomenon of "inhibition of return" (IOR) is affected by attention biases to colours that result from a bandit task.
 
-![ior_reward_combined_trial](https://lh4.googleusercontent.com/jJVXnP4IfMluU-TNdXyrRgDnDod19Kb8BvQh1k6-CS7LmGPOLKjETkj49YPuenHcdV6EjA5wiSjufVgCN1dN=w1264-h680)
+![ior_reward_combined_trial](https://drive.google.com/uc?id=1l9EU7Ay4sNz3wb_Vwgi--Mv-pHfIP7aV)
 
 ## Requirements
 
