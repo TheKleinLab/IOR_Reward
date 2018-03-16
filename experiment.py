@@ -76,6 +76,10 @@ class IOR_Reward(klibs.Experiment):
 		# Generate bandit colours from colour wheel
 		
 		self.bandit_colour_combos = []
+		if (P.blocks_per_experiment + int(P.run_practice_blocks)) > 4:
+			msg = ("Only 4 sets of colours available, experiment script must be modified if more"
+				"than 4 blocks total are wanted.")
+			raise RuntimeError(msg)
 		for angle in [0, 45, 90, 135]:
 			combo = [const_lum[angle], const_lum[angle+180]]
 			self.bandit_colour_combos.append(combo)
@@ -171,17 +175,11 @@ class IOR_Reward(klibs.Experiment):
 			any_key()
 		self.total_score = 0 # reset total bandit score each block 
 		
-		# If practicing, use different colours than during experimental blocks
-		if P.practicing:
-			practice_colours = random.sample([BLUE, RED], 2)
-			self.high_value_color = practice_colours[0]
-			self.low_value_color = practice_colours[1]
-		else:
-			# Change bandit colours between blocks
-			bandit_colours = self.bandit_colour_combos.pop()
-			random.shuffle(bandit_colours)
-			self.high_value_color = bandit_colours[0]
-			self.low_value_color = bandit_colours[1]
+		# Change bandit colours between blocks
+		bandit_colours = self.bandit_colour_combos.pop()
+		random.shuffle(bandit_colours)
+		self.high_value_color = bandit_colours[0]
+		self.low_value_color = bandit_colours[1]
 		
 
 	def setup_response_collector(self):
@@ -284,7 +282,7 @@ class IOR_Reward(klibs.Experiment):
 			if len(self.probe_rc.keypress_listener.responses):
 				self.show_error_message('wrong_response')
 				self.err = 'keypress_on_probe'
-			elif self.probe_rc.audio_listener.responses[0][1] == TIMEOUT:
+			elif len(self.probe_rc.audio_listener.responses) == 0:
 				self.show_error_message('probe_timeout')
 
 		#  BANDIT RESPONSE PERIOD
@@ -296,29 +294,27 @@ class IOR_Reward(klibs.Experiment):
 					self.err = 'vocal_on_bandit'
 		
 		if self.err:
-			bandit_choice, bandit_rt, bandit_timeout, reward = ['NA', 'NA', 'NA', 'NA']
-			probe_rt, probe_timeout = ['NA', 'NA']
+			bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA']
+			probe_rt = 'NA'
 		else:
 			self.err = 'NA'
 			# Retreive responses from RepsponseCollector(s) and record data
 			if self.trial_type in [BANDIT, BOTH]:
-				bandit_choice = self.bandit_rc.keypress_listener.responses[0][0]
-				bandit_rt = self.bandit_rc.keypress_listener.responses[0][1]
-				bandit_timeout = bandit_rt == TIMEOUT
-				if bandit_timeout:
+				bandit_choice = self.bandit_rc.keypress_listener.response(value=True, rt=False)
+				bandit_rt = self.bandit_rc.keypress_listener.response(value=False, rt=True)
+				if bandit_rt == TIMEOUT:
 					self.show_error_message('bandit_timeout')
 					reward = 'NA'
 				else:
 					# determine bandit payout (reward) and display feedback to participant
 					reward = self.feedback(bandit_choice)
 			else:
-				bandit_choice, bandit_rt, bandit_timeout, reward = ['NA', 'NA', 'NA', 'NA']
+				bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA']
 				
 			if self.trial_type in [PROBE, BOTH]:
-				probe_rt = self.probe_rc.audio_listener.responses[0][1]
-				probe_timeout = probe_rt == TIMEOUT
+				probe_rt = self.probe_rc.audio_listener.response(value=False, rt=True)
 			else:
-				probe_rt, probe_timeout = ['NA', 'NA']
+				probe_rt = 'NA'
 				
 
 		return {
@@ -327,6 +323,8 @@ class IOR_Reward(klibs.Experiment):
 			"trial_type": self.trial_type,
 			"cue_loc": self.cue_location,
 			"cotoa": self.cotoa,
+			"high_value_col": self.high_value_color[:3] if self.trial_type != PROBE else "NA",
+			"low_value_col": self.low_value_color[:3] if self.trial_type != PROBE else "NA",
 			"high_value_loc": self.high_value_location if self.trial_type != PROBE else "NA",
 			"winning_bandit": self.winning_bandit if self.trial_type != PROBE else "NA",
 			"bandit_choice": bandit_choice,

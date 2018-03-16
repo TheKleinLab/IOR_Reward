@@ -31,7 +31,7 @@ multi_user = False
 collect_demographics = True
 run_practice_blocks = True
 
-trials_per_block = 96
+trials_per_block = 128
 blocks_per_experiment = 3
 
 #########################################

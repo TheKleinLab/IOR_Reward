@@ -51,6 +51,8 @@ CREATE TABLE trials (
 	cue_loc text not null,
 	cotoa float not null,
 	/* bandit columns */
+    high_value_col text not null,
+    low_value_col text not null,
     high_value_loc text not null,
     winning_bandit text not null,
     bandit_choice text not null,
