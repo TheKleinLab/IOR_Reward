@@ -38,7 +38,7 @@ blocks_per_experiment = 3
 # Development Mode Settings
 #########################################
 dm_auto_threshold = False
-dm_trial_show_mouse = True
+dm_trial_show_mouse = False
 dm_ignore_local_overrides = False
 dm_show_gaze_dot = True
 
@@ -53,4 +53,4 @@ default_participant_fields_sf = [[unique_identifier, "participant"], "random_see
 #########################################
 # Project-specific params
 #########################################
-ignore_vocal_for_bandits = True # with more sensitive mics, key presses pass audio threshold
+ignore_vocal_for_bandits = False # with more sensitive mics, key presses pass audio threshold

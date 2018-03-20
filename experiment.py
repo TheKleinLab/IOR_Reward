@@ -115,7 +115,7 @@ class IOR_Reward(klibs.Experiment):
 		
 		# EyeLink Boundaries
 		
-		fix_bounds = [P.screen_c, star_size*3]
+		fix_bounds = [P.screen_c, square_size/2]
 		self.el.add_boundary('fixation', fix_bounds, CIRCLE_BOUNDARY)
 		
 		# Experiment Messages
@@ -294,10 +294,14 @@ class IOR_Reward(klibs.Experiment):
 		if self.trial_type in [BANDIT, BOTH] and not self.err:
 			self.bandit_rc.collect()
 			if self.trial_type == BANDIT and P.ignore_vocal_for_bandits == False:
-				if len(self.probe_rc.audio_listener.responses):
+				if len(self.bandit_rc.audio_listener.responses):
 					self.show_error_message('wrong_response')
 					self.err = 'vocal_on_bandit'
+
+		# After response made or error encountered, remove stimuli from screen
+		clear()
 		
+		# Retrieve collected response data before logging to database
 		if self.err:
 			bandit_choice, bandit_rt, reward = ['NA', 'NA', 'NA']
 			probe_rt = 'NA'
