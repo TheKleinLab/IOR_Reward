@@ -69,9 +69,11 @@ class IOR_Reward(klibs.Experiment):
 		
 		thick_rect_border = deg_to_px(0.5)
 		thin_rect_border = deg_to_px(0.1)
-		star_size = deg_to_px(0.75)
+		star_size = deg_to_px(0.6)
 		star_thickness = deg_to_px(0.1)
-		square_size = deg_to_px(4)
+		square_size = deg_to_px(3)
+		text_size = deg_to_px(0.65)
+		large_text_size = deg_to_px(0.85)
 		
 		# Generate bandit colours from colour wheel
 		
@@ -99,8 +101,9 @@ class IOR_Reward(klibs.Experiment):
 		
 		# Layout
 		
-		self.left_box_loc = (P.screen_x // 4, P.screen_c[1])
-		self.right_box_loc = (3 * P.screen_x // 4, P.screen_c[1])
+		box_offset = deg_to_px(8.0)
+		self.left_box_loc = (P.screen_c[0] - box_offset, P.screen_c[1])
+		self.right_box_loc = (P.screen_c[0] + box_offset, P.screen_c[1])
 		
 		# Timing
 		
@@ -112,14 +115,15 @@ class IOR_Reward(klibs.Experiment):
 		
 		# EyeLink Boundaries
 		
-		fix_bounds = [P.screen_c, star_size*1.5]
+		fix_bounds = [P.screen_c, star_size*3]
 		self.el.add_boundary('fixation', fix_bounds, CIRCLE_BOUNDARY)
 		
 		# Experiment Messages
 		
-		self.txtm.add_style("score up", 34, PASTEL_GREEN)
-		self.txtm.add_style("score down", 34, PASTEL_RED)
-		self.txtm.add_style("timeout", 34, WHITE)
+		self.txtm.styles['default'].font_size = text_size # re-define default font size in degrees
+		self.txtm.add_style("score up", large_text_size, PASTEL_GREEN)
+		self.txtm.add_style("score down", large_text_size, PASTEL_RED)
+		self.txtm.add_style("timeout", large_text_size, WHITE)
 		
 		err_txt = "{0}\n\nPress any key to continue."
 		lost_fixation_txt = err_txt.format("Eyes moved! Please keep your eyes on the asterisk.")
@@ -199,10 +203,10 @@ class IOR_Reward(klibs.Experiment):
 		self.bandit_rc.flip = True
 		self.bandit_rc.keypress_listener.key_map = self.keymap
 		self.bandit_rc.keypress_listener.interrupts = True
-		if self.trial_type == BOTH or P.ignore_vocal_for_bandits:
-			self.bandit_rc.audio_listener.interrupts = False
-		else:
+		if self.trial_type == BANDIT and not P.ignore_vocal_for_bandits:
 			self.bandit_rc.audio_listener.interrupts = True
+		else:
+			self.bandit_rc.audio_listener.interrupts = False
 
 
 	def trial_prep(self):
@@ -267,7 +271,7 @@ class IOR_Reward(klibs.Experiment):
 		
 		self.targets_shown = True # after bandits or probe shown, don't recycle trial on user error
 		if self.trial_type in [BANDIT, BOTH] and not self.err:
-			while self.evm.before('nogo_end'):
+			while self.evm.before('nogo_end') and not self.err:
 				if key_pressed():
 					self.show_error_message('too_soon')
 					self.err = "early_response"
@@ -284,6 +288,7 @@ class IOR_Reward(klibs.Experiment):
 				self.err = 'keypress_on_probe'
 			elif len(self.probe_rc.audio_listener.responses) == 0:
 				self.show_error_message('probe_timeout')
+				self.err = 'probe_timeout'
 
 		#  BANDIT RESPONSE PERIOD
 		if self.trial_type in [BANDIT, BOTH] and not self.err:
