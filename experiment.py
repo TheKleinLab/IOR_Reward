@@ -110,8 +110,7 @@ class IOR_Reward(klibs.Experiment):
 		# Note: cotoa = cue-offset target-onset asynchrony
 		self.cotoa_min = 700 # ms
 		self.cotoa_max = 1000 # ms
-		self.post_selection_wait = 1 # sec
-		self.feedback_exposure_period = 1 # sec
+		self.feedback_exposure_period = 1.25 # sec
 		
 		# EyeLink Boundaries
 		
@@ -297,9 +296,6 @@ class IOR_Reward(klibs.Experiment):
 				if len(self.bandit_rc.audio_listener.responses):
 					self.show_error_message('wrong_response')
 					self.err = 'vocal_on_bandit'
-
-		# After response made or error encountered, remove stimuli from screen
-		clear()
 		
 		# Retrieve collected response data before logging to database
 		if self.err:
@@ -324,7 +320,9 @@ class IOR_Reward(klibs.Experiment):
 				probe_rt = self.probe_rc.audio_listener.response(value=False, rt=True)
 			else:
 				probe_rt = 'NA'
-				
+
+		# Clear any remaining stimuli from screen before trial end
+		clear()				
 
 		return {
 			"block_num": P.block_number,
@@ -370,13 +368,6 @@ class IOR_Reward(klibs.Experiment):
 			msg = message("You lost 5 points!", "score down", blit_txt=False)
 		self.total_score += points
 		feedback = [points, msg]
-			
-		post_selection_wait = CountDown(self.post_selection_wait)
-		while post_selection_wait.counting():
-			ui_request()
-			fill()
-			blit(self.star, 5, P.screen_c)
-			flip()
 
 		feedback_exposure = CountDown(self.feedback_exposure_period)
 		while feedback_exposure.counting():
