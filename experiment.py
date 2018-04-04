@@ -78,7 +78,7 @@ class IOR_Reward(klibs.Experiment):
 		# Generate bandit colours from colour wheel
 		
 		self.bandit_colour_combos = []
-		if (P.blocks_per_experiment + int(P.run_practice_blocks)) > 4:
+		if P.blocks_per_experiment > 4:
 			msg = ("Only 4 sets of colours available, experiment script must be modified if more"
 				"than 4 blocks total are wanted.")
 			raise RuntimeError(msg)
@@ -159,12 +159,6 @@ class IOR_Reward(klibs.Experiment):
 		
 		if P.run_practice_blocks:
 			self.insert_practice_block(1, trial_counts=20)
-		
-		# Calibrate mic with user input in order to set threshold for vocal responses
-		
-		threshold = self.audio.calibrate()
-		self.probe_rc.audio_listener.threshold = threshold
-		self.bandit_rc.audio_listener.threshold = threshold
 
 
 	def block(self):
@@ -179,10 +173,21 @@ class IOR_Reward(klibs.Experiment):
 		self.total_score = 0 # reset total bandit score each block 
 		
 		# Change bandit colours between blocks
-		bandit_colours = self.bandit_colour_combos.pop()
-		random.shuffle(bandit_colours)
-		self.high_value_color = bandit_colours[0]
-		self.low_value_color = bandit_colours[1]
+		if P.practicing:
+			greys = [(192, 192, 192, 255), (64, 64, 64, 255)]
+			random.shuffle(greys)
+			self.high_value_color = greys[0]
+			self.low_value_color = greys[1]
+		else:
+			bandit_colours = self.bandit_colour_combos.pop()
+			random.shuffle(bandit_colours)
+			self.high_value_color = bandit_colours[0]
+			self.low_value_color = bandit_colours[1]
+
+		# Calibrate microphone for audio responses (people get quieter over time)
+		threshold = self.audio.calibrate()
+		self.probe_rc.audio_listener.threshold = threshold
+		self.bandit_rc.audio_listener.threshold = threshold
 		
 
 	def setup_response_collector(self):
@@ -344,6 +349,12 @@ class IOR_Reward(klibs.Experiment):
 
 
 	def trial_clean_up(self):
+
+		# Refresh audio streams to avoid potential PyAudio bugs
+		self.probe_rc.audio_listener._refresh_stream()
+		self.bandit_rc.audio_listener._refresh_stream()
+
+		# Clear responses from response collectors before next trial
 		self.probe_rc.audio_listener.reset()
 		self.probe_rc.keypress_listener.reset()
 		self.bandit_rc.audio_listener.reset()

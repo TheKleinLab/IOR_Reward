@@ -31,8 +31,8 @@ multi_user = False
 collect_demographics = True
 run_practice_blocks = True
 
-trials_per_block = 128
-blocks_per_experiment = 3
+trials_per_block = 64
+blocks_per_experiment = 4
 
 #########################################
 # Development Mode Settings
