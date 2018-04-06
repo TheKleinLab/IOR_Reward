@@ -174,7 +174,7 @@ class IOR_Reward(klibs.Experiment):
 		
 		# Change bandit colours between blocks
 		if P.practicing:
-			greys = [(192, 192, 192, 255), (64, 64, 64, 255)]
+			greys = [(0, 0, 0, 255), (96, 96, 96, 255)]
 			random.shuffle(greys)
 			self.high_value_color = greys[0]
 			self.low_value_color = greys[1]
@@ -287,12 +287,13 @@ class IOR_Reward(klibs.Experiment):
 		#  PROBE RESPONSE PERIOD
 		if self.trial_type in [PROBE, BOTH] and not self.err:
 			self.probe_rc.collect()
-			if len(self.probe_rc.keypress_listener.responses):
-				self.show_error_message('wrong_response')
-				self.err = 'keypress_on_probe'
-			elif len(self.probe_rc.audio_listener.responses) == 0:
-				self.show_error_message('probe_timeout')
-				self.err = 'probe_timeout'
+			if not self.err:
+				if len(self.probe_rc.keypress_listener.responses):
+					self.show_error_message('wrong_response')
+					self.err = 'keypress_on_probe'
+				elif len(self.probe_rc.audio_listener.responses) == 0:
+					self.show_error_message('probe_timeout')
+					self.err = 'probe_timeout'
 
 		#  BANDIT RESPONSE PERIOD
 		if self.trial_type in [BANDIT, BOTH] and not self.err:
@@ -349,6 +350,10 @@ class IOR_Reward(klibs.Experiment):
 
 
 	def trial_clean_up(self):
+
+		# Reload audio stream, hopefully preventing bug with vocal responses randomly ceasing to
+		# work partway into the session
+		self.audio.reload_stream()
 
 		# Clear responses from response collectors before next trial
 		self.probe_rc.audio_listener.reset()
