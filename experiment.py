@@ -350,10 +350,6 @@ class IOR_Reward(klibs.Experiment):
 
 	def trial_clean_up(self):
 
-		# Refresh audio streams to avoid potential PyAudio bugs
-		self.probe_rc.audio_listener._refresh_stream()
-		self.bandit_rc.audio_listener._refresh_stream()
-
 		# Clear responses from response collectors before next trial
 		self.probe_rc.audio_listener.reset()
 		self.probe_rc.keypress_listener.reset()
