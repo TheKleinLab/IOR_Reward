@@ -293,7 +293,10 @@ class IOR_Reward(klibs.Experiment):
 					self.err = 'keypress_on_probe'
 				elif len(self.probe_rc.audio_listener.responses) == 0:
 					self.show_error_message('probe_timeout')
-					self.err = 'probe_timeout'
+					if self.probe_rc.audio_listener.stream_error:
+						self.err = 'microphone_error'
+					else:
+						self.err = 'probe_timeout'
 
 		#  BANDIT RESPONSE PERIOD
 		if self.trial_type in [BANDIT, BOTH] and not self.err:
@@ -350,10 +353,6 @@ class IOR_Reward(klibs.Experiment):
 
 
 	def trial_clean_up(self):
-
-		# Reload audio stream, hopefully preventing bug with vocal responses randomly ceasing to
-		# work partway into the session
-		self.audio.reload_stream()
 
 		# Clear responses from response collectors before next trial
 		self.probe_rc.audio_listener.reset()
